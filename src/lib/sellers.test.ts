@@ -7,25 +7,29 @@ const novaOffers = offers.filter((offer) => offer.productId === 'nova')
 describe('seller offer grouping and totals', () => {
   it('sorts confirmed in-stock offers by total delivered price', () => {
     const groups = groupOffers(novaOffers)
-    expect(groups.confirmedInStock.map((row) => row.total)).toEqual([1899, 1939, 1979, 2029])
+    expect(groups.confirmedInStock.map((row) => row.total)).toEqual([1899, 1909, 1939, 1979, 2029])
     expect(groups.confirmedInStock[0].offer.retailer).toBe('Galaxus')
+    for (const offer of offers) expect(offer.seller).toBe(offer.retailer)
   })
 
   it('keeps unknown totals in a separate group, never as the cheapest', () => {
-    const groups = groupOffers(novaOffers)
+    const incomplete = novaOffers.map((offer) => offer.id === 'nova-p' ? { ...offer, shipping: null, fees: null } : offer)
+    const groups = groupOffers(incomplete)
     expect(groups.unconfirmed).toHaveLength(1)
     expect(groups.unconfirmed[0].offer.retailer).toBe('PC Dock')
     expect(groups.unconfirmed[0].confirmed).toBe(false)
-    expect(bestConfirmedOffer(novaOffers)?.offer.retailer).toBe('Galaxus')
+    expect(bestConfirmedOffer(incomplete)?.offer.retailer).toBe('Galaxus')
   })
 
   it('states the price range basis and unknown count', () => {
-    const range = priceRange(novaOffers)!
+    const incomplete = novaOffers.map((offer) => offer.id === 'nova-p' ? { ...offer, shipping: null } : offer)
+    const range = priceRange(incomplete)!
     expect(range.min).toBe(1899)
     expect(range.max).toBe(2029)
     expect(range.count).toBe(4)
     expect(range.unknownCount).toBe(1)
-    expect(range.basis).toContain('Confirmed delivered totals')
+    expect(range.basis).toBe('Delivered totals shown · VAT included')
+    expect(range.basis).not.toMatch(/synthetic|demo|mock|scripted|confirmed|verified/i)
   })
 
   it('does not merge different exact configurations', () => {
@@ -36,7 +40,7 @@ describe('seller offer grouping and totals', () => {
   })
 
   it('keeps an in-budget unknown-stock offer visible but not as best price', () => {
-    const vortexOffers = offers.filter((offer) => offer.productId === 'vortex')
+    const vortexOffers = offers.filter((offer) => offer.productId === 'vortex').map((offer) => offer.id === 'vortex-g' ? { ...offer, stock: 'To be confirmed' as const } : offer)
     const groups = groupOffers(vortexOffers)
     expect(groups.confirmedUnknownStock[0].total).toBe(2350)
     expect(groups.confirmedInStock[0].total).toBe(2649)
@@ -48,5 +52,6 @@ describe('seller offer grouping and totals', () => {
   it('formats CHF consistently', () => {
     expect(formatCHF(1899)).toContain('CHF')
     expect(formatCHF(1899)).toContain('1')
+    expect(formatCHF(29.65)).toBe('CHF 29.65')
   })
 })

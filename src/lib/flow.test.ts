@@ -9,6 +9,7 @@ import {
   findDiscoveryMatches,
   matchesCharacteristic,
   productPrice,
+  setCharacteristicMode,
 } from './flow'
 
 const product = (id: string) => products.find((item) => item.id === id)!
@@ -25,7 +26,7 @@ describe('flow characteristics', () => {
 
   it('filters the fixture catalog by supported features and price', () => {
     const result = findDiscoveryMatches(products, offers, DEFAULT_CHARACTERISTICS, DEFAULT_PRICE_RANGE)
-    expect(result.matches.map((item) => item.id)).toEqual(['nova', 'vortex', 'vega', 'aero', 'orbit-pro', 'titan'])
+    expect(result.matches.map((item) => item.id)).toEqual(['nova', 'orbit', 'vortex', 'strix', 'vega', 'aero', 'orbit-pro', 'titan', 'aura'])
     expect(result.unsupported).toHaveLength(0)
   })
 
@@ -45,7 +46,7 @@ describe('flow characteristics', () => {
     const custom = createCustomCharacteristic('Wi-Fi 7', 'custom-wifi')
     const characteristics = [...DEFAULT_CHARACTERISTICS, custom]
     const result = findDiscoveryMatches(products, offers, characteristics, DEFAULT_PRICE_RANGE)
-    expect(result.matches).toHaveLength(6)
+    expect(result.matches).toHaveLength(9)
     expect(result.unsupported.map((characteristic) => characteristic.label)).toEqual(['Wi-Fi 7'])
     expect(matchesCharacteristic(product('nova'), custom)).toBe(true)
   })
@@ -53,6 +54,16 @@ describe('flow characteristics', () => {
   it('treats an explicitly preferred RAM feature as visible soft preference, not a match filter', () => {
     const ram = { ...DEFAULT_CHARACTERISTICS.find((item) => item.kind === 'ram')!, preferenceOnly: true }
     expect(matchesCharacteristic(product('orbit'), ram)).toBe(true)
+  })
+
+  it('excludes below-target products only when GPU and RAM are required', () => {
+    const required = DEFAULT_CHARACTERISTICS.map((feature) => ['gpu', 'ram'].includes(feature.kind) ? setCharacteristicMode(feature, 'required') : feature)
+    expect(findDiscoveryMatches(products, offers, required, DEFAULT_PRICE_RANGE).matches.map((item) => item.id)).toEqual(['nova', 'vortex', 'vega', 'aero', 'orbit-pro', 'titan'])
+    const ram = required.find((feature) => feature.id === 'ram')!
+    expect(matchesCharacteristic(product('orbit'), ram)).toBe(false)
+    const preferred = setCharacteristicMode(ram, 'preferred')
+    expect(matchesCharacteristic(product('orbit'), preferred)).toBe(true)
+    expect(preferred.label.match(/preference only/g)).toHaveLength(1)
   })
 
   it('returns an empty match set for an impossible price window', () => {

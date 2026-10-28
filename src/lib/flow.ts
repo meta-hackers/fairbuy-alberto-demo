@@ -48,10 +48,10 @@ export function ramCharacteristicLabel(value: number, mode: CharacteristicMode =
 
 export function setCharacteristicMode(characteristic: Characteristic, mode: CharacteristicMode): Characteristic {
   if (characteristic.kind === 'gpu') {
-    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: `${gpuCharacteristicLabel(Number(characteristic.value), mode)}${mode === 'preferred' ? ' · preference only' : ''}` }
+    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: gpuCharacteristicLabel(Number(characteristic.value), mode) }
   }
   if (characteristic.kind === 'ram') {
-    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: `${ramCharacteristicLabel(Number(characteristic.value), mode)}${mode === 'preferred' ? ' · preference only' : ''}` }
+    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: ramCharacteristicLabel(Number(characteristic.value), mode) }
   }
   return characteristic
 }
@@ -91,7 +91,7 @@ export function productPrice(product: Product, offers: Offer[]): number | null {
 
 export function matchesCharacteristic(product: Product, characteristic: Characteristic): boolean {
   if (!characteristic.supported) return true
-  if (characteristic.preferenceOnly) return true
+  if (characteristic.preferenceOnly || characteristic.mode === 'preferred') return true
   if (characteristic.kind === 'resolution') {
     return RESOLUTION_RANK[product.maxResolution] >= RESOLUTION_RANK[characteristic.value as Resolution]
   }

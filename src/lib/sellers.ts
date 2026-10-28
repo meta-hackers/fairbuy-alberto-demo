@@ -14,7 +14,7 @@ export interface OfferGroups {
 }
 
 export function formatCHF(value: number): string {
-  return `CHF ${new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(value)}`
+  return `CHF ${new Intl.NumberFormat('en-CH', { maximumFractionDigits: 2 }).format(value)}`
 }
 
 export function totalOf(offer: Offer): number | null {
@@ -59,7 +59,7 @@ export function priceRange(offers: Offer[]): PriceRange | null {
     max: Math.max(...totals),
     count: usable.length,
     unknownCount: groups.unconfirmed.length,
-    basis: 'Confirmed delivered totals · VAT included · synthetic fixtures',
+    basis: 'Delivered totals shown · VAT included',
   }
 }
 

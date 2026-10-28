@@ -17,11 +17,11 @@ const hasWord = (text: string, word: string) => {
 
 const hasAny = (text: string, words: string[]) => words.some((word) => text.includes(word))
 
-const budgetWords = ['budget', 'costo', 'costi', 'prezzo', 'prezzi', 'spesa', 'soldi', 'chf', 'franchi', 'franco', 'economico', 'costare']
+const budgetWords = ['budget', 'price', 'cost', 'expensive', 'cheap', 'costo', 'costi', 'prezzo', 'prezzi', 'spesa', 'soldi', 'chf', 'franchi', 'franco', 'economico', 'costare']
 const gpuWords = ['gpu', 'scheda video', 'scheda grafica', 'nvidia', 'radeon', 'rtx', 'geforce']
-const ramWords = ['memoria']
+const ramWords = ['memory', 'memoria']
 const resolutionWords = ['risoluzione', 'resolution', '1080', '1440', '2160', '4k', 'frame', 'hertz', 'monitor']
-const gamingWords = ['gioco', 'giochi', 'giocare', 'gaming', 'competitivo', 'competitivi', 'aaa', 'sim racing', 'coop', 'co-op', 'strategia', 'sparatutto', 'avventura', 'rpg']
+const gamingWords = ['game', 'gaming', 'competitive', 'gioco', 'giochi', 'giocare', 'competitivo', 'competitivi', 'aaa', 'sim racing', 'coop', 'co-op', 'strategia', 'sparatutto', 'avventura', 'rpg']
 
 export function mockTopicFor(text: string): MockTopic {
   const normalized = normalize(text)
@@ -39,35 +39,35 @@ export function mockReply(text: string, brief: Brief): MockReply {
   if (topic === 'budget') {
     return {
       topic,
-      text: `Your active budget is ${formatCHF(brief.budgetMin)}–${formatCHF(brief.budgetMax)}. Free text does not change it; use the price control in Configure. Scripted reply, no AI.`,
+      text: `Your budget is ${formatCHF(brief.budgetMin)}–${formatCHF(brief.budgetMax)}. Free text does not change it; use Configure.`,
     }
   }
   if (topic === 'gaming') {
     return {
       topic,
-      text: `Your active characteristics cover: ${brief.games.length > 0 ? brief.games.join(', ') : 'no games selected'}. Change them in Configure; free text does not update characteristics. Scripted reply, no AI.`,
+      text: `Your requirements cover: ${brief.games.length > 0 ? brief.games.join(', ') : 'no games selected'}. Edit them in Configure; this message has not changed them.`,
     }
   }
   if (topic === 'resolution') {
     return {
       topic,
-      text: `Your active target is ${brief.resolution} · ${brief.targetFps} fps. Edit it in Configure; free text does not apply changes. Scripted reply, no AI.`,
+      text: `Your target is ${brief.resolution} · ${brief.targetFps} fps. Edit it in Configure; this message has not changed it.`,
     }
   }
   if (topic === 'ram') {
     return {
       topic,
-      text: `Your active RAM characteristic is ${brief.ram.value} GB, ${brief.ram.mode}. Free text does not update it; use Configure. Scripted reply, no AI.`,
+      text: `Your RAM target is ${brief.ram.value} GB, ${brief.ram.mode}. Free text does not update it; use Configure.`,
     }
   }
   if (topic === 'gpu') {
     return {
       topic,
-      text: `Your active GPU characteristic is RTX ${brief.gpu.value} or higher, ${brief.gpu.mode}. ${brief.avoidGpu.length > 0 ? `You are avoiding: ${brief.avoidGpu.join(', ')}.` : 'No GPUs are on your avoid list.'} Free text does not update it; use Configure. Scripted reply, no AI.`,
+      text: `Your GPU target is RTX ${brief.gpu.value} or higher, ${brief.gpu.mode}. ${brief.avoidGpu.length > 0 ? `You are avoiding: ${brief.avoidGpu.join(', ')}.` : ''} Edit it in Configure; this message has not changed it.`,
     }
   }
   return {
     topic: 'fallback',
-    text: 'I cannot reliably interpret that request. This demo responds only to keywords about budget, games, resolution/FPS, RAM, and GPU. Use Configure or edit your characteristics; I have not changed anything. Scripted reply, no AI.',
+    text: 'I cannot reliably interpret that request. Review your requirements in Configure; I have not changed anything.',
   }
 }

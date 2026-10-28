@@ -20,7 +20,14 @@ export default function DismissModal({ product, brief, onClose, onApply }: Props
   const [clarification, setClarification] = useState<Clarification>({ ram: 'keep', gpu: 'keep' })
   const prompts = useMemo(() => clarificationsFor(selected, brief), [selected, brief])
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+      if (event.key === 'Tab') {
+        const controls = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="dismiss-modal"] button:not(:disabled), [data-testid="dismiss-modal"] input, [data-testid="dismiss-modal"] textarea'))
+        const edge = event.shiftKey ? controls[0] : controls.at(-1)
+        if (document.activeElement === edge) { event.preventDefault(); (event.shiftKey ? controls.at(-1) : controls[0])?.focus() }
+      }
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
@@ -39,7 +46,7 @@ export default function DismissModal({ product, brief, onClose, onApply }: Props
           <div><p className="eyebrow">Product feedback</p><h2 id="dismiss-title">Why is this not a good fit?</h2></div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close" autoFocus>×</button>
         </div>
-        <p className="muted">{product.name} will be excluded. Only an explicit RAM/GPU choice changes a characteristic; other reasons and notes do not add filters.</p>
+        <p className="muted">{product.name} will be excluded. You can restore it in Learn. Requirements change only when you explicitly select a new priority.</p>
         <div className="reason-grid" role="group" aria-label="Reasons for exclusion">
           {reasons.map((reason) => (
             <button type="button" key={reason.id} className={`chip chip--reason ${selected.includes(reason.id) ? 'is-active' : ''}`} aria-pressed={selected.includes(reason.id)} onClick={() => toggle(reason.id)}>

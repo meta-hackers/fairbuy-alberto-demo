@@ -9,10 +9,10 @@ describe('mock free-text replies', () => {
     expect(reply.text).toContain("CHF 1'200")
     expect(reply.text).toContain("CHF 2'400")
     expect(reply.text).toContain('Free text does not change it')
-    expect(reply.text).toContain('no AI')
+    expect(reply.text).not.toMatch(/demo|synthetic|scripted|no AI/i)
   })
 
-  it('answers gaming questions and points to Configure', () => {
+  it('answers gaming questions and points to Configura', () => {
     const reply = mockReply('Gioco soprattutto Competitive FPS e giochi AAA', defaultBrief)
     expect(reply.topic).toBe('gaming')
     expect(reply.text).toContain('Competitive FPS')

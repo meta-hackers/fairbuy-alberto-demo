@@ -16,7 +16,7 @@ interface Props {
   placeholder?: string
 }
 
-export default function ChatPanel({ messages, revealed, characteristicCount, onSend, onConfigure, placeholder = 'e.g. I mostly play FPS at 1440p, maximum budget CHF 1,800' }: Props) {
+export default function ChatPanel({ messages, revealed, characteristicCount, onSend, onConfigure, placeholder = 'What are you looking for?' }: Props) {
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const logRef = useRef<HTMLDivElement>(null)
@@ -44,22 +44,20 @@ export default function ChatPanel({ messages, revealed, characteristicCount, onS
   }
 
   return (
-    <section className="chat-panel" aria-label="FairBuy scripted assistant">
+    <section className="chat-panel" aria-label="Shopping conversation">
       <div className="chat-panel__header">
-        <div><span className="logo-mark" aria-hidden="true">◇</span><strong>FairBuy Assistant</strong></div>
-        <span className="soft-tag">demo · scripted replies, no AI</span>
+        <strong>Your request</strong>
       </div>
       <div className="chat-log" aria-live="polite" aria-relevant="additions" ref={logRef} data-testid="chat-log">
         {messages.length === 0 ? (
           <p className="chat-empty" data-testid="chat-empty">
-            No messages yet. Type your request to begin. This assistant is scripted and does not use an AI model.
+            Tell us what you need. Start with a computer or a smart light switch.
           </p>
         ) : null}
         {messages.map((message) => (
           <div className={`bubble bubble--${message.role}`} key={message.id} data-testid={`message-${message.role}`} data-simulated={message.simulated ? 'true' : undefined}>
             <span className="bubble__role">
-              {message.role === 'user' ? 'You' : message.role === 'system' ? 'Demo system' : 'FairBuy'}
-              {message.simulated ? <span className="bubble__sim">simulated · no AI</span> : null}
+              {message.role === 'user' ? 'You' : 'FairBuy'}
             </span>
             <p>{message.text}</p>
           </div>
@@ -68,19 +66,19 @@ export default function ChatPanel({ messages, revealed, characteristicCount, onS
       <div className="chat-actions">
         {!revealed ? (
           <p className="hint" data-testid="ask-progress">
-            Your messages: {Math.min(userCount, 2)}/2. Mock characteristics appear after your second message.
+            {userCount === 0 ? 'Start with the product you need.' : 'Add your budget and priorities to continue.'}
           </p>
         ) : (
           <div className="chat-actions__row chat-actions__row--between">
             <span className="hint" data-testid="chat-revealed-note">
-              {characteristicCount} characteristics ready. Keep chatting; they will not be reset.
+              {characteristicCount} requirements ready to review.
             </span>
             <button type="button" className="button button--primary" onClick={onConfigure} data-testid="go-configure">
-              Configure price and filters →
+               Review in Configure →
             </button>
           </div>
         )}
-        <form className="composer" aria-label="Messaggio per l'assistente simulato" onSubmit={(event) => { event.preventDefault(); submitDraft() }}>
+        <form className="composer" aria-label="Your shopping message" onSubmit={(event) => { event.preventDefault(); submitDraft() }}>
           <label className="composer__label" htmlFor="ask-free-text">Your message</label>
           <textarea
             id="ask-free-text"
@@ -98,7 +96,7 @@ export default function ChatPanel({ messages, revealed, characteristicCount, onS
           />
           <div className="chat-actions__row">
             <button type="submit" className="button button--ghost button--small" disabled={draftIsEmpty} data-testid="ask-send">Send</button>
-            <span id="ask-composer-hint" className="hint">Enter sends · Shift+Enter adds a line · scripted reply, no AI; your text does not change characteristics.</span>
+            <span id="ask-composer-hint" className="hint">Enter to send · Shift+Enter for a new line</span>
           </div>
         </form>
       </div>

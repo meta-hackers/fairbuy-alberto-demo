@@ -1,9 +1,9 @@
 import { reasonLabels, type Feedback } from '../lib/feedback'
 
 export default function FeedbackLog({ entries, onUndo }: { entries: Feedback[]; onUndo: (id: string) => void }) {
-  return <section className="panel feedback-log" data-testid="feedback-log" aria-label="Registro feedback">
-    <h2>LEARN · Feedback and exclusions</h2>
-    <p className="hint">Reasons and notes persist across stages and searches. Resetting the demo clears them.</p>
+  return <section className="panel feedback-log" data-testid="feedback-log" aria-label="Product feedback">
+    <h2>Feedback & exclusions</h2>
+    <p className="hint">Restore a product at any time. Later requirement edits are preserved.</p>
     {entries.length === 0 ? <p>No products excluded. Expand a result to leave feedback.</p> : <ul>
       {entries.map((entry) => <li key={entry.id} data-testid={`feedback-${entry.id}`} data-product-id={entry.productId}>
         <strong>{entry.productName}</strong> — {entry.active ? 'Excluded' : 'Restored'}

@@ -13,6 +13,10 @@ describe('computeMatch', () => {
     expect(match.bestOffer).toBe(1899)
     expect(match.offerRange).toEqual([1899, 2029])
     expect(match.hardFailures).toHaveLength(0)
+    for (const item of products) {
+      const result = computeMatch(item, defaultBrief, productOffers(item.id))
+      expect([...result.reasons, ...result.unknown, ...result.softMisses, ...result.hardFailures].join(' ')).not.toMatch(/synthetic|demo|mock|scripted/i)
+    }
   })
 
   it('marks 16 GB / 4060 Ti products as amber preferences, not hard failures', () => {
@@ -39,14 +43,15 @@ describe('computeMatch', () => {
 
   it('does not exclude a product whose range crosses budget when an exact offer fits', () => {
     const match = computeMatch(product('vortex'), defaultBrief, productOffers('vortex'))
-    expect(match.tier).toBe('unknown')
+    expect(match.tier).toBe('preference')
     expect(match.hardFailures).toHaveLength(0)
     expect(match.offerRange?.[0]).toBeLessThanOrEqual(defaultBrief.budgetMax)
     expect(match.offerRange?.[1]).toBeGreaterThan(defaultBrief.budgetMax)
   })
 
   it('marks a product unknown when only an in-budget offer has unconfirmed stock', () => {
-    const match = computeMatch(product('vortex'), defaultBrief, productOffers('vortex'))
+    const incomplete = productOffers('vortex').map((offer) => offer.id === 'vortex-g' ? { ...offer, stock: 'To be confirmed' as const } : offer)
+    const match = computeMatch(product('vortex'), defaultBrief, incomplete)
     expect(match.tier).toBe('unknown')
     expect(match.unknown.join(' ')).toContain('availability')
     expect(match.bestOffer).toBe(2649)
@@ -99,7 +104,8 @@ describe('feedback and rediscovery', () => {
 
 describe('evaluateCatalog', () => {
   it('separates feasible, unknown and excluded groups', () => {
-    const result = evaluateCatalog(products, defaultBrief, offers, ['nova', 'orbit', 'vortex', 'strix', 'titan', 'aura'], [])
+    const incomplete = offers.map((offer) => offer.id === 'vortex-g' ? { ...offer, stock: 'To be confirmed' as const } : offer)
+    const result = evaluateCatalog(products, defaultBrief, incomplete, ['nova', 'orbit', 'vortex', 'strix', 'titan', 'aura'], [])
     expect(result.feasible.map((match) => match.productId)).toContain('nova')
     expect(result.excluded.map((match) => match.productId)).toContain('titan')
     expect(result.unknown.map((match) => match.productId)).toContain('vortex')

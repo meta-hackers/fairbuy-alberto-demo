@@ -97,10 +97,9 @@ export function computeMatch(product: Product, brief: Brief, productOffers: Offe
 
   if (gpuMeets) reasons.push(`GPU ${product.config.gpu} ${brief.gpu.mode} requirement met`)
   if (ramMeets) reasons.push(`${product.config.ramGB} GB RAM ${brief.ram.mode} requirement met`)
-  if (best !== null) reasons.push(`Lowest confirmed delivered total: ${formatCHF(best)}`)
+  if (best !== null) reasons.push(`Lowest delivered total shown: ${formatCHF(best)}`)
   if (range?.unknownCount) reasons.push(`${range.unknownCount} offer(s) with unconfirmed totals`)
   if (product.config.condition === 'New') reasons.push('New condition')
-  reasons.push('Synthetic fixture data; no real offers')
 
   let tier: MatchResult['tier'] = 'strong'
   if (hardFailures.length > 0) tier = 'conflict'

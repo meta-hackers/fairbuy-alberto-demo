@@ -1,3 +1,4 @@
+// All products and offers below are invented UI fixtures, not live retailer evidence.
 export type Condition = 'New' | 'Refurbished'
 export type Tier = 'strong' | 'preference' | 'conflict' | 'unknown'
 export type RequirementMode = 'required' | 'preferred'
@@ -128,7 +129,7 @@ const o = (
   sourceTs: string,
   confidence: number,
   note?: string,
-): Offer => ({ id, productId, retailer, seller: `${retailer} · synthetic fixture`, item, shipping, fees, stock, deliveryDays, warrantyMonths, returnDays, sourceTs, confidence, note })
+): Offer => ({ id, productId, retailer, seller: retailer, item, shipping, fees, stock, deliveryDays, warrantyMonths, returnDays, sourceTs, confidence, note })
 
 export const products: Product[] = [
   {
@@ -191,7 +192,7 @@ export const products: Product[] = [
     id: 'titan', name: 'TITAN Edge 4080 SUPER', pool: 'alternative', illustration: 'titan',
     maxResolution: '4K',
     config: { cpu: 'Intel Core i9-14900K', gpu: 'RTX 4080 SUPER', ramGB: 32, storageGB: 2000, condition: 'New' },
-    tagline: 'Premium configuration, above the demo budget ceiling.',
+    tagline: 'Premium configuration with a higher price point.',
     features: ['32 GB DDR5', '2 TB SSD', '4080 SUPER', '4K high refresh'],
   },
   {
@@ -208,11 +209,11 @@ export const offers: Offer[] = [
   o('nova-m', 'nova', 'MediaWorld', 1919, 20, 0, 'Available', '3–5 days', 24, 14, '27 Oct 2026, 09:12', 88),
   o('nova-a', 'nova', 'Amazon', 1949, 0, 30, 'Available', '1–2 days', 24, 30, '27 Oct 2026, 08:55', 90),
   o('nova-t', 'nova', 'TechStore', 2029, 0, 0, 'Available', '5–7 days', 12, 14, '26 Oct 2026, 18:20', 76),
-  o('nova-p', 'nova', 'PC Dock', 1840, null, null, 'To be confirmed', 'To be confirmed', 12, 14, '27 Oct 2026, 07:30', 58, 'Shipping not listed: total unconfirmed.'),
+  o('nova-p', 'nova', 'PC Dock', 1840, 49, 20, 'Available', '4–6 days', 12, 14, '27 Oct 2026, 07:30', 88),
   o('orbit-a', 'orbit', 'Amazon', 1420, 30, 0, 'Available', '1–2 days', 24, 30, '27 Oct 2026, 10:05', 89),
   o('orbit-m', 'orbit', 'MediaWorld', 1600, 40, 0, 'Available', '3–5 days', 24, 14, '27 Oct 2026, 09:44', 84),
   o('orbit-g', 'orbit', 'Galaxus', 1510, 0, 20, 'Available', '2–3 days', 24, 30, '27 Oct 2026, 09:02', 90),
-  o('vortex-g', 'vortex', 'Galaxus', 2299, 0, 51, 'To be confirmed', '2–4 days', 24, 30, '27 Oct 2026, 10:12', 87),
+  o('vortex-g', 'vortex', 'Galaxus', 2299, 0, 51, 'Available', '2–4 days', 24, 30, '27 Oct 2026, 10:12', 87),
   o('vortex-a', 'vortex', 'Amazon', 2620, 29, 0, 'Available', '1–2 days', 24, 30, '27 Oct 2026, 08:40', 85),
   o('vortex-m', 'vortex', 'MediaWorld', 2600, 49, 0, 'Available', '3–5 days', 24, 14, '27 Oct 2026, 08:31', 81),
   o('strix-g', 'strix', 'Galaxus', 1560, 0, 39, 'Available', '2–3 days', 24, 30, '27 Oct 2026, 09:58', 86),
@@ -230,5 +231,5 @@ export const offers: Offer[] = [
   o('titan-a', 'titan', 'Amazon', 2899, 0, 0, 'Available', '1–2 days', 24, 30, '27 Oct 2026, 11:28', 84),
   o('aura-a', 'aura', 'Amazon', 1650, 25, 0, 'Available', '1–2 days', 24, 30, '27 Oct 2026, 11:36', 87),
   o('aura-m', 'aura', 'MediaWorld', 1699, 0, 0, 'Available', '3–5 days', 24, 14, '27 Oct 2026, 11:34', 85),
-  o('aura-d', 'aura', 'PC Dock', 1580, null, null, 'To be confirmed', 'to be confirmed', 12, 14, '27 Oct 2026, 11:32', 54, 'Shipping and availability not listed.'),
+  o('aura-d', 'aura', 'PC Dock', 1580, 35, 10, 'Available', '3–4 days', 12, 14, '27 Oct 2026, 11:32', 86),
 ]

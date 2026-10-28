@@ -1,15 +1,16 @@
 import { useState, type FormEvent } from 'react'
-import type { Characteristic } from '../lib/flow'
+import type { Characteristic, CharacteristicMode } from '../lib/flow'
 
 interface Props {
   characteristics: Characteristic[]
   onRemove: (id: string) => void
   onAdd: (label: string) => void
+  onMode?: (id: string, mode: CharacteristicMode) => void
   title?: string
   hint?: string
 }
 
-export default function CharacteristicsPanel({ characteristics, onRemove, onAdd, title = 'Selected characteristics', hint }: Props) {
+export default function CharacteristicsPanel({ characteristics, onRemove, onAdd, onMode, title = 'Requirements', hint }: Props) {
   const [draft, setDraft] = useState('')
   const empty = draft.trim().length === 0
   const unsupported = characteristics.filter((characteristic) => !characteristic.supported)
@@ -35,12 +36,16 @@ export default function CharacteristicsPanel({ characteristics, onRemove, onAdd,
         <ul className="characteristic-list">
           {characteristics.map((characteristic) => (
             <li className="characteristic-item" key={characteristic.id} data-testid="characteristic-item" data-supported={characteristic.supported ? 'true' : 'false'}>
-              <span className="characteristic-item__label">{characteristic.label}</span>
+              <span className="characteristic-item__label">{onMode ? characteristic.label.replace(/ · (required|preference only)$/, '') : characteristic.label}</span>
               {!characteristic.supported ? <span className="characteristic-item__warning">unverified</span> : null}
+              {onMode && (characteristic.kind === 'gpu' || characteristic.kind === 'ram') ? <select aria-label={`${characteristic.kind.toUpperCase()} priority`}
+                value={characteristic.mode ?? 'preferred'} onChange={(event) => onMode(characteristic.id, event.target.value as CharacteristicMode)}>
+                <option value="required">Required</option><option value="preferred">Preferred</option>
+              </select> : null}
               <button
                 type="button"
                 onClick={() => onRemove(characteristic.id)}
-                aria-label={`Remove characteristic: ${characteristic.label}`}
+                aria-label={`Remove requirement: ${characteristic.label}`}
                 data-testid={`remove-characteristic-${characteristic.id}`}
               >
                 ×
@@ -50,14 +55,14 @@ export default function CharacteristicsPanel({ characteristics, onRemove, onAdd,
         </ul>
       )}
       <form className="characteristic-add" onSubmit={submit}>
-        <label htmlFor="custom-characteristic">Add a characteristic</label>
+        <label htmlFor="custom-characteristic">Add a requirement</label>
         <div className="characteristic-add__row">
           <input
             id="custom-characteristic"
             type="text"
             value={draft}
             maxLength={80}
-            placeholder="e.g. Wi-Fi 7, quiet, 2 TB SSD"
+            placeholder="e.g. compact, quiet, Wi-Fi 7"
             onChange={(event) => setDraft(event.target.value)}
             data-testid="custom-characteristic-input"
           />
@@ -66,7 +71,7 @@ export default function CharacteristicsPanel({ characteristics, onRemove, onAdd,
       </form>
       {unsupported.length > 0 ? (
         <p className="info-banner" data-testid="unsupported-note">
-          Custom characteristics cannot be verified against synthetic data. They are excluded from matching, and no product is claimed to satisfy them.
+          Unverified requirements are saved for review, but do not filter products or establish compatibility.
         </p>
       ) : null}
     </section>
