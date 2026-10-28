@@ -33,7 +33,7 @@ export function undoFeatureChanges(features: Characteristic[], changes: FeatureC
 }
 
 export const reasonLabels: Record<string, string> = {
-  expensive: 'Troppo caro', ram: 'RAM insufficiente', gpu: 'GPU insufficiente',
-  avoidGpu: 'GPU da evitare (solo feedback)', other: 'Altro motivo', skip: 'Senza motivo',
-  compatibility: 'Compatibilità da verificare', capacity: 'Capacità / carico da verificare',
+  expensive: 'Too expensive', ram: 'Insufficient RAM', gpu: 'Insufficient GPU',
+  avoidGpu: 'GPU to avoid (feedback only)', other: 'Other reason', skip: 'No reason given',
+  compatibility: 'Compatibility to verify', capacity: 'Capacity / load to verify',
 }

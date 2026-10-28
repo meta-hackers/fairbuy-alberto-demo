@@ -10,8 +10,8 @@ interface Props {
 }
 
 const baseReasons: Array<{ id: DismissReason; label: string }> = [
-  { id: 'expensive', label: 'Troppo caro' },
-  { id: 'other', label: 'Un altro motivo' },
+  { id: 'expensive', label: 'Too expensive' },
+  { id: 'other', label: 'Another reason' },
 ]
 
 export default function DismissModal({ product, brief, onClose, onApply }: Props) {
@@ -27,20 +27,20 @@ export default function DismissModal({ product, brief, onClose, onApply }: Props
   const toggle = (reason: DismissReason) => setSelected((current) => current.includes(reason) ? current.filter((item) => item !== reason) : [...current, reason])
   const reasons = [
     ...baseReasons.slice(0, 1),
-    { id: 'ram' as const, label: `RAM insufficiente (${product.config.ramGB} GB)` },
-    { id: 'gpu' as const, label: 'GPU non abbastanza potente' },
-    { id: 'avoidGpu' as const, label: `Voglio evitare ${product.config.gpu}` },
+    { id: 'ram' as const, label: `Insufficient RAM (${product.config.ramGB} GB)` },
+    { id: 'gpu' as const, label: 'GPU is not powerful enough' },
+    { id: 'avoidGpu' as const, label: `I want to avoid ${product.config.gpu}` },
     ...baseReasons.slice(1),
   ]
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal dismiss-modal" role="dialog" aria-modal="true" aria-labelledby="dismiss-title" data-testid="dismiss-modal">
         <div className="modal__header">
-          <div><p className="eyebrow">Feedback sul prodotto</p><h2 id="dismiss-title">Perché non è adatto?</h2></div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Chiudi" autoFocus>×</button>
+          <div><p className="eyebrow">Product feedback</p><h2 id="dismiss-title">Why is this not a good fit?</h2></div>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Close" autoFocus>×</button>
         </div>
-        <p className="muted">{product.name} verrà escluso. Solo una scelta esplicita RAM/GPU cambia le caratteristiche; gli altri motivi e le note non impongono filtri.</p>
-        <div className="reason-grid" role="group" aria-label="Motivi del rifiuto">
+        <p className="muted">{product.name} will be excluded. Only an explicit RAM/GPU choice changes a characteristic; other reasons and notes do not add filters.</p>
+        <div className="reason-grid" role="group" aria-label="Reasons for exclusion">
           {reasons.map((reason) => (
             <button type="button" key={reason.id} className={`chip chip--reason ${selected.includes(reason.id) ? 'is-active' : ''}`} aria-pressed={selected.includes(reason.id)} onClick={() => toggle(reason.id)}>
               {selected.includes(reason.id) ? '✓ ' : ''}{reason.label}
@@ -50,7 +50,7 @@ export default function DismissModal({ product, brief, onClose, onApply }: Props
         {prompts.map((prompt) => (
           <fieldset className="clarify-box" key={prompt.key}>
             <legend>{prompt.question}</legend>
-            <p className="hint">Un rifiuto non crea una regola obbligatoria: scegli tu.</p>
+            <p className="hint">Declining one product does not create a mandatory rule. You decide.</p>
             {prompt.options.map((option) => (
               <label className="radio-line" key={option.value}>
                 <input
@@ -64,14 +64,14 @@ export default function DismissModal({ product, brief, onClose, onApply }: Props
             ))}
           </fieldset>
         ))}
-        <label className="textarea-label">Oppure scrivi il motivo
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Es. preferisco una GPU più silenziosa…" rows={3} maxLength={280} />
+        <label className="textarea-label">Or add a note
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. I prefer a quieter GPU…" rows={3} maxLength={280} />
         </label>
-        <p className="hint">La nota resta nel registro feedback. Nessun vincolo automatico.</p>
+        <p className="hint">The note is saved in the feedback log. No automatic constraints are added.</p>
         <div className="modal__actions">
-          <button type="button" className="button button--ghost" onClick={onClose}>Annulla</button>
-          <button type="button" className="button button--ghost" onClick={() => onApply(['skip'], clarification, '')} data-testid="dismiss-skip">Salta senza motivo</button>
-          <button type="button" className="button button--primary" disabled={selected.length === 0 && !note.trim()} onClick={() => onApply(selected.length ? selected : ['other'], clarification, note.trim())} data-testid="dismiss-apply">Applica feedback</button>
+          <button type="button" className="button button--ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="button button--ghost" onClick={() => onApply(['skip'], clarification, '')} data-testid="dismiss-skip">Skip without a reason</button>
+          <button type="button" className="button button--primary" disabled={selected.length === 0 && !note.trim()} onClick={() => onApply(selected.length ? selected : ['other'], clarification, note.trim())} data-testid="dismiss-apply">Apply feedback</button>
         </div>
       </div>
     </div>

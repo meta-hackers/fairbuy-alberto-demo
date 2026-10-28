@@ -24,7 +24,7 @@ export function totalOf(offer: Offer): number | null {
 
 export function withTotal(offer: Offer): OfferTotal {
   const total = totalOf(offer)
-  return { offer, total, confirmed: total !== null, available: offer.stock === 'Disponibile' }
+  return { offer, total, confirmed: total !== null, available: offer.stock === 'Available' }
 }
 
 export function groupOffers(offers: Offer[]): OfferGroups {
@@ -59,7 +59,7 @@ export function priceRange(offers: Offer[]): PriceRange | null {
     max: Math.max(...totals),
     count: usable.length,
     unknownCount: groups.unconfirmed.length,
-    basis: 'Totali consegnati confermati · IVA inclusa · fixture sintetiche',
+    basis: 'Confirmed delivered totals · VAT included · synthetic fixtures',
   }
 }
 

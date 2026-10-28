@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const FIRST_MESSAGE = 'Mi serve un PC per gaming competitivo e AAA'
-const SECOND_MESSAGE = 'Budget 2000 CHF, 1440p, GPU e RAM importanti'
+const FIRST_MESSAGE = 'I need a PC for competitive and AAA gaming'
+const SECOND_MESSAGE = 'Budget CHF 2,000, 1440p; GPU and RAM matter'
 
 async function freezeClock(page: Page) {
   const time = new Date('2026-01-01T00:00:00Z')
@@ -33,7 +33,7 @@ test('configure and discover are locked until two messages reveal characteristic
   await page.goto('/')
 
   await page.getByTestId('rail-configure').click()
-  await expect(page.getByText(/Completa prima i due messaggi/)).toBeVisible()
+  await expect(page.getByText(/Send two messages in ASK first/)).toBeVisible()
   await expect(page.getByTestId('configure-page')).toHaveCount(0)
   await expect(page.getByTestId('ask-locked')).toBeVisible()
 
@@ -89,13 +89,13 @@ test('PC cards are compact by default, keyboard expandable, and dismissal is rev
 
   await card.getByTestId('dismiss-nova').click()
   await expect(page.getByTestId('dismiss-modal')).toBeVisible()
-  await page.getByTestId('dismiss-modal').getByRole('button', { name: 'Annulla' }).click()
+  await page.getByTestId('dismiss-modal').getByRole('button', { name: 'Cancel' }).click()
   await expect(card).toBeVisible()
   await card.getByTestId('dismiss-nova').click()
-  await page.getByRole('button', { name: 'Troppo caro' }).click()
+  await page.getByRole('button', { name: 'Too expensive' }).click()
   await page.getByTestId('dismiss-apply').click()
   await expect(card).toHaveCount(0)
-  await expect(page.locator('[data-product-id="nova"]').filter({ hasText: 'Troppo caro' })).toBeVisible()
+  await expect(page.locator('[data-product-id="nova"]').filter({ hasText: 'Too expensive' })).toBeVisible()
   await page.getByTestId('rail-ask').click()
   await page.getByTestId('rail-discover').click()
   await expect(page.getByTestId('product-card-nova')).toHaveCount(0)
@@ -103,7 +103,7 @@ test('PC cards are compact by default, keyboard expandable, and dismissal is rev
   await page.getByTestId('price-min').press('ArrowRight')
   await expect(page.getByTestId('product-card-nova')).toHaveCount(0)
   await page.getByTestId('stage-learn').click()
-  await expect(page.locator('[data-product-id="nova"]').filter({ hasText: 'Troppo caro' })).toBeVisible()
+  await expect(page.locator('[data-product-id="nova"]').filter({ hasText: 'Too expensive' })).toBeVisible()
   await page.getByTestId('undo-nova').click()
   await page.getByTestId('rail-discover').click()
   await expect(page.getByTestId('product-card-nova')).toHaveCount(0)
@@ -113,18 +113,18 @@ test('PC cards are compact by default, keyboard expandable, and dismissal is rev
   await page.getByTestId('dismiss-nova').click()
   await page.getByTestId('dismiss-skip').click()
   await expect(page.getByTestId('product-card-nova')).toHaveCount(0)
-  await expect(page.locator('[data-product-id="nova"]').filter({ hasText: 'Senza motivo' })).toBeVisible()
+  await expect(page.locator('[data-product-id="nova"]').filter({ hasText: 'No reason given' })).toBeVisible()
 })
 
 test('explicit preferred clarification updates the visible characteristic without a hard mode', async ({ page }) => {
   await freezeClock(page); await startDiscovery(page); await page.clock.runFor(2000)
   await page.getByTestId('expand-nova').click()
   await page.getByTestId('dismiss-nova').click()
-  await page.getByRole('button', { name: 'RAM insufficiente (32 GB)' }).click()
-  await page.getByLabel('Solo una preferenza').check()
+  await page.getByRole('button', { name: 'Insufficient RAM (32 GB)' }).click()
+  await page.getByRole('radio', { name: 'Preference only' }).check()
   await page.getByTestId('dismiss-apply').click()
-  await expect(page.getByText('RAM: 32 GB · solo preferenza').first()).toBeVisible()
-  await expect(page.locator('[data-product-id="nova"]').filter({ hasText: 'RAM: 32 GB · solo preferenza' })).toBeVisible()
+  await expect(page.getByText('RAM: 32 GB · preference only').first()).toBeVisible()
+  await expect(page.locator('[data-product-id="nova"]').filter({ hasText: 'RAM: 32 GB · preference only' })).toBeVisible()
 })
 
 test('dismissal custom note saves feedback without silently changing characteristics', async ({ page }) => {
@@ -132,9 +132,9 @@ test('dismissal custom note saves feedback without silently changing characteris
   const card = page.getByTestId('product-card-nova')
   await page.getByTestId('expand-nova').click()
   await card.getByTestId('dismiss-nova').click()
-  await page.getByTestId('dismiss-modal').getByLabel(/Oppure scrivi il motivo/).fill('preferisco un case compatto')
+  await page.getByTestId('dismiss-modal').getByLabel(/Or add a note/).fill('I prefer a compact case')
   await page.getByTestId('dismiss-apply').click()
-  await expect(page.locator('[data-product-id="nova"]').filter({ hasText: 'preferisco un case compatto' })).toBeVisible()
+  await expect(page.locator('[data-product-id="nova"]').filter({ hasText: 'I prefer a compact case' })).toBeVisible()
   await expect(page.getByTestId('characteristic-item')).toHaveCount(5)
 })
 
@@ -145,8 +145,8 @@ test('dual-thumb price slider is keyboard accessible, visible and cannot cross',
   const min = page.getByTestId('price-min')
   const max = page.getByTestId('price-max')
   await expect(min).toHaveAttribute('type', 'range')
-  await expect(min).toHaveAttribute('aria-label', 'Prezzo minimo')
-  await expect(max).toHaveAttribute('aria-label', 'Prezzo massimo')
+  await expect(min).toHaveAttribute('aria-label', 'Minimum price')
+  await expect(max).toHaveAttribute('aria-label', 'Maximum price')
   await expect(page.getByTestId('price-min-value')).toHaveText("CHF 1'000")
   await expect(page.getByTestId('price-max-value')).toHaveText("CHF 3'000")
 
@@ -193,8 +193,8 @@ test('discover inserts one product at 2s and 4s, keeps filters and resumes witho
   await expect(page.getByTestId('price-max-value')).toHaveText("CHF 3'000")
   await expect(page.getByTestId('characteristic-item')).toHaveCount(6)
   await expect(page.getByTestId('unsupported-banner')).toContainText('Wi-Fi 7')
-  await expect(page.getByTestId('searching-indicator')).toContainText('Sta cercando...')
-  await expect(page.getByTestId('search-status')).toHaveText('Sta cercando...')
+  await expect(page.getByTestId('searching-indicator')).toContainText('Searching...')
+  await expect(page.getByTestId('search-status')).toHaveText('Searching...')
   await expect(cards(page)).toHaveCount(0)
 
   await page.clock.runFor(1999)
@@ -236,8 +236,8 @@ test('discover inserts one product at 2s and 4s, keeps filters and resumes witho
   ])
   expect(new Set(ids).size).toBe(6)
   await expect(page.getByTestId('searching-indicator')).toHaveCount(0)
-  await expect(page.getByTestId('search-status')).toHaveText('Ricerca completata')
-  await expect(page.getByTestId('search-complete')).toContainText('6 prodotti compatibili')
+  await expect(page.getByTestId('search-status')).toHaveText('Discovery complete')
+  await expect(page.getByTestId('search-complete')).toContainText('6 products matching')
 })
 
 test('changing filters cleans the timer and restarts with the new price and features', async ({ page }) => {
@@ -247,10 +247,10 @@ test('changing filters cleans the timer and restarts with the new price and feat
   await page.clock.runFor(2000)
   await expect(cards(page)).toHaveCount(1)
 
-  await page.getByRole('button', { name: 'Rimuovi caratteristica: Condizione: solo nuovo' }).click()
+  await page.getByRole('button', { name: 'Remove characteristic: Condition: new only' }).click()
   await expect(cards(page)).toHaveCount(0)
   await expect(page.getByTestId('searching-indicator')).toBeVisible()
-  await expect(page.getByTestId('discover-count')).toContainText('6 compatibili')
+  await expect(page.getByTestId('discover-count')).toContainText('6 match')
 
   await page.clock.runFor(1999)
   await expect(cards(page)).toHaveCount(0)
@@ -273,7 +273,7 @@ test('changing filters cleans the timer and restarts with the new price and feat
   for (let i = 0; i < 10; i += 1) await max.press('ArrowLeft')
   await expect(page.getByTestId('price-min-value')).toHaveText("CHF 1'800")
   await expect(page.getByTestId('price-max-value')).toHaveText("CHF 2'000")
-  await expect(page.getByTestId('discover-count')).toContainText('3 compatibili')
+  await expect(page.getByTestId('discover-count')).toContainText('3 match')
   await expect(cards(page)).toHaveCount(0)
 
   await page.clock.runFor(2000)
@@ -295,9 +295,9 @@ test('empty result state is immediate, sensible and can be reset', async ({ page
   await page.getByTestId('start-discovery').click()
 
   await expect(page.getByTestId('empty-state')).toBeVisible()
-  await expect(page.getByTestId('empty-state')).toContainText('Nessun prodotto con questi filtri')
+  await expect(page.getByTestId('empty-state')).toContainText('No products match these filters')
   await expect(page.getByTestId('searching-indicator')).toHaveCount(0)
-  await expect(page.getByTestId('search-status')).toHaveText('Ricerca completata')
+  await expect(page.getByTestId('search-status')).toHaveText('Discovery complete')
   await expect(cards(page)).toHaveCount(0)
 
   await page.getByTestId('reset-filters').click()
@@ -314,16 +314,16 @@ test('offers, comparison and favorites remain usable from the new discovery flow
   await page.clock.runFor(2000)
 
   await page.getByTestId('expand-nova').click()
-  await page.getByTestId('product-card-nova').getByRole('button', { name: /Vedi offerte esatte/ }).click()
+  await page.getByTestId('product-card-nova').getByRole('button', { name: /View exact offers/ }).click()
   await expect(page.getByTestId('seller-view')).toBeVisible()
   await expect(page.getByTestId('seller-nova-g')).toContainText('Galaxus')
   await expect(page.getByTestId('seller-nova-g')).toContainText(/1.899/)
   await expect(page.getByTestId('seller-unknown-nova-p')).toBeVisible()
-  await page.getByRole('button', { name: /Dettaglio retailer/ }).first().click()
-  await expect(page.getByRole('dialog')).toContainText('Nessun acquisto effettuato')
-  await page.getByRole('dialog').getByRole('button', { name: 'Chiudi' }).click()
+  await page.getByRole('button', { name: /Retailer details/ }).first().click()
+  await expect(page.getByRole('dialog')).toContainText('No purchase has been made')
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
 
-  await page.getByRole('button', { name: '← Torna ai prodotti' }).click()
+  await page.getByRole('button', { name: '← Back to products' }).click()
   await expect(page.getByTestId('discover-page')).toBeVisible()
   await page.clock.runFor(2000)
   await expect(page.getByTestId('product-card-vortex')).toBeVisible()
@@ -334,7 +334,7 @@ test('offers, comparison and favorites remain usable from the new discovery flow
   await page.getByTestId('open-compare').click()
   await expect(page.getByTestId('compare-modal')).toContainText('NOVA Forge 4070 SUPER')
   await expect(page.getByTestId('compare-modal')).toContainText('VORTEX Elite 4080 SUPER')
-  await page.getByRole('button', { name: 'Chiudi confronto' }).click()
+  await page.getByRole('button', { name: 'Close comparison' }).click()
 
   await page.getByTestId('favorite-nova').click()
   await expect(page.getByTestId('favorites-count')).toContainText('1')
@@ -366,7 +366,7 @@ test('mobile configure and discover keep filters usable without horizontal overf
   await expect(page.getByTestId('product-card-nova')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1)
 
-  await page.getByRole('button', { name: 'Apri navigazione' }).click()
+  await page.getByRole('button', { name: 'Open navigation' }).click()
   await expect(page.locator('.app-rail')).toHaveClass(/is-open/)
   await page.screenshot({ path: 'artifacts/screenshots/mobile-flow-discover.png', fullPage: true })
 })

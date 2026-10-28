@@ -16,7 +16,7 @@ const palettes: Record<Illustration, [string, string]> = {
 export default function ProductIllustration({ variant, size = 'card' }: { variant: Illustration; size?: 'card' | 'large' }) {
   const [accent, accent2] = palettes[variant]
   return (
-    <svg className={`pc-art pc-art--${size}`} viewBox="0 0 160 140" role="img" aria-label="Illustrazione sintetica di un PC gaming">
+    <svg className={`pc-art pc-art--${size}`} viewBox="0 0 160 140" role="img" aria-label="Synthetic gaming PC illustration">
       <defs>
         <linearGradient id={`glow-${variant}`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor={accent} stopOpacity="0.5" />

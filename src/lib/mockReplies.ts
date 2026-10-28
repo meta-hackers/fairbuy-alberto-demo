@@ -39,35 +39,35 @@ export function mockReply(text: string, brief: Brief): MockReply {
   if (topic === 'budget') {
     return {
       topic,
-      text: `Il budget attivo va da ${formatCHF(brief.budgetMin)} a ${formatCHF(brief.budgetMax)}. Il testo libero non modifica il budget: usa il cursore del prezzo in Configura. Risposta simulata, nessuna AI.`,
+      text: `Your active budget is ${formatCHF(brief.budgetMin)}–${formatCHF(brief.budgetMax)}. Free text does not change it; use the price control in Configure. Scripted reply, no AI.`,
     }
   }
   if (topic === 'gaming') {
     return {
       topic,
-      text: `Le caratteristiche attive riguardano: ${brief.games.length > 0 ? brief.games.join(', ') : 'nessun gioco selezionato'}. Per cambiarle usa Configura; il testo libero non aggiorna le caratteristiche. Risposta simulata, nessuna AI.`,
+      text: `Your active characteristics cover: ${brief.games.length > 0 ? brief.games.join(', ') : 'no games selected'}. Change them in Configure; free text does not update characteristics. Scripted reply, no AI.`,
     }
   }
   if (topic === 'resolution') {
     return {
       topic,
-      text: `Le caratteristiche attive puntano a ${brief.resolution} · ${brief.targetFps} fps. Modifica la caratteristica in Configura; il testo libero non applica modifiche. Risposta simulata, nessuna AI.`,
+      text: `Your active target is ${brief.resolution} · ${brief.targetFps} fps. Edit it in Configure; free text does not apply changes. Scripted reply, no AI.`,
     }
   }
   if (topic === 'ram') {
     return {
       topic,
-      text: `La caratteristica RAM attiva è ${brief.ram.value} GB, ${brief.ram.mode === 'required' ? 'obbligatoria' : 'preferita'}. Il testo libero non aggiorna il vincolo: usa Configura. Risposta simulata, nessuna AI.`,
+      text: `Your active RAM characteristic is ${brief.ram.value} GB, ${brief.ram.mode}. Free text does not update it; use Configure. Scripted reply, no AI.`,
     }
   }
   if (topic === 'gpu') {
     return {
       topic,
-      text: `La caratteristica GPU attiva è RTX ${brief.gpu.value} o superiore, ${brief.gpu.mode === 'required' ? 'obbligatoria' : 'preferita'}. ${brief.avoidGpu.length > 0 ? `Eviti: ${brief.avoidGpu.join(', ')}.` : 'Nessuna GPU è nella lista da evitare.'} Il testo libero non aggiorna il vincolo: usa Configura. Risposta simulata, nessuna AI.`,
+      text: `Your active GPU characteristic is RTX ${brief.gpu.value} or higher, ${brief.gpu.mode}. ${brief.avoidGpu.length > 0 ? `You are avoiding: ${brief.avoidGpu.join(', ')}.` : 'No GPUs are on your avoid list.'} Free text does not update it; use Configure. Scripted reply, no AI.`,
     }
   }
   return {
     topic: 'fallback',
-    text: 'Non interpreto questa richiesta in modo affidabile. Questa demo risponde solo a parole chiave su budget, giochi, risoluzione/FPS, RAM e GPU. Usa Configura o le caratteristiche: non ho modificato nulla. Risposta simulata, nessuna AI.',
+    text: 'I cannot reliably interpret that request. This demo responds only to keywords about budget, games, resolution/FPS, RAM, and GPU. Use Configure or edit your characteristics; I have not changed anything. Scripted reply, no AI.',
   }
 }

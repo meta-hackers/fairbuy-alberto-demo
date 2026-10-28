@@ -1,32 +1,32 @@
 import type { Characteristic } from '../lib/flow'
 
 export const RELAY_FEATURES: Characteristic[] = [
-  { id: 'hue', label: 'Bridge Philips Hue : compatibilité native déclarée, à vérifier', kind: 'custom', supported: false },
-  { id: 'on-off', label: 'ON/OFF uniquement · SANS DIMMER : exigence à vérifier', kind: 'custom', supported: false },
-  { id: 'voltage', label: '230 V AC · neutre L+N disponible', kind: 'custom', supported: false },
-  { id: 'mount', label: 'Boîte de dérivation au plafond · pas derrière l’interrupteur', kind: 'custom', supported: false },
-  { id: 'fixed', label: 'Installation fixe · pas une prise', kind: 'custom', supported: false },
-  { id: 'load', label: 'Puissance réelle du néon : INCONNUE', kind: 'custom', supported: false },
+  { id: 'hue', label: 'Philips Hue Bridge: native compatibility claimed, verify exact model', kind: 'custom', supported: false },
+  { id: 'on-off', label: 'ON/OFF only · NO DIMMER: requirement to verify', kind: 'custom', supported: false },
+  { id: 'voltage', label: '230 V AC · neutral L+N available', kind: 'custom', supported: false },
+  { id: 'mount', label: 'Ceiling junction box · not behind the wall switch', kind: 'custom', supported: false },
+  { id: 'fixed', label: 'Fixed wiring · not a plug-in device', kind: 'custom', supported: false },
+  { id: 'load', label: 'Actual neon load: UNKNOWN', kind: 'custom', supported: false },
 ]
 
 export interface RelayProduct { id: string; name: string; mockTotal: number; claim: string; url: string }
 export const relayProducts: RelayProduct[] = [
   {
     id: 'led-trading', name: 'LED Trading ZigBee-Aktor 230V', mockTotal: 34.65,
-    claim: 'Recherche historique : ASIN B08Q3HF3HJ, env. CHF 29.65 (pas une offre actuelle). Capacité annoncée du MODULE : LED 200 W / 1.5 A ; ce n’est PAS la consommation mesurée du néon. Dimensions citées : 45 × 45.5 × 20.3 mm, IP20. Compatibilité native Hue déclarée par la recherche, non vérifiée ici. Contradiction de la source : aussi appelé « dimmer ». La capacité ON/OFF sans dimmer reste À VÉRIFIER, jamais certifiée.',
+    claim: 'Historical research reference: ASIN B08Q3HF3HJ, approximately CHF 29.65 at the time (not a current offer). The module is cited as rated for LED 200 W / 1.5 A; this is not the measured neon load. Cited dimensions: 45 × 45.5 × 20.3 mm, IP20. Native Hue compatibility is claimed in the supplied research but is not verified here. Source conflict: another source description calls it a “dimmer”. ON/OFF-only / no-dimmer capability remains to be verified and is not certified.',
     url: 'https://www.amazon.de/-/en/gp/product/B08Q3HF3HJ/',
   },
   {
     id: 'iluminize', name: 'Iluminize 5120.2', mockTotal: 49,
-    claim: 'Alternative citée dans la recherche fournie. Compatibilité native Hue, capacité de charge et absence de dimmer à vérifier dans la documentation du modèle exact. Aucun prix actuel vérifié. Total purement mock de CHF 49 pour tester le filtre.',
+    claim: 'Alternative cited in the supplied research. Native Hue compatibility, load rating, and no-dimmer behavior must be checked against the exact model documentation. No current price verified. CHF 49 is a fictional demo total used only to exercise the price filter.',
     url: 'https://www.iluminize.com/shop/5120-2-aktor-230v-mit-anschluss-fur-lichtschalter-wechselschaltung-zigbee-kompatibel-1951',
   },
   {
     id: 'gledopto', name: 'Gledopto ON/OFF', mockTotal: 39,
-    claim: 'Alternative ON/OFF citée dans la recherche. Référence exacte, compatibilité native Hue et capacité à vérifier. Aucun prix actuel vérifié. Total purement mock de CHF 39 pour tester le filtre.',
+    claim: 'ON/OFF alternative cited in the supplied research. Exact model, native Hue compatibility, and load rating must be verified. No current price verified. CHF 39 is a fictional demo total used only to exercise the price filter.',
     url: 'https://www.gledopto.eu/zigbee-on-off-wall-switch-80x80mm_1',
   },
 ]
 
-export const RELAY_FOLLOW_UP = 'Pour le relais smart du néon (pas Nintendo ni réseau) : quel budget, quel bridge et quelle puissance réelle du néon ? La puissance est inconnue dans cette simulation ; 200 W / 1.5 A désigne une capacité du module, pas une mesure de la charge.'
-export const RELAY_RESEARCH_NOTE = 'Recherche historique fournie, non vérifiée en direct. Candidats à étudier, pas des compatibilités certifiées. Aucun achat ni offre réelle. Hue Smart Plug CH exclu pour ce scénario à câblage fixe. Sonoff ZBMINIR2 / ZBMINIL2, MiBoxer PZ2, EMOS GoSmart et Shelly Gen4 rejetés dans la recherche source ; motifs non revérifiés, aucune incompatibilité générale de protocole affirmée.'
+export const RELAY_FOLLOW_UP = 'For a smart relay for your neon light (not a Nintendo or network switch): what is your budget, which bridge do you use, and what is the neon’s actual wattage? Actual wattage is unknown in this demo; 200 W / 1.5 A is a cited module capacity, not a measurement of your light.'
+export const RELAY_RESEARCH_NOTE = 'Historical supplied research; not verified live. These are candidates to investigate, not certified compatible products. No real offers or purchases. Hue Smart Plug CH is excluded for this fixed-wiring scenario. The supplied research rejected Sonoff ZBMINIR2 / ZBMINIL2, MiBoxer PZ2, EMOS GoSmart, and Shelly Gen4; the reasons have not been re-verified. No general protocol incompatibility is asserted.'

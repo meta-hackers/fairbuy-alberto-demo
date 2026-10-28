@@ -1,12 +1,12 @@
 export type Stage = 'ask' | 'configure' | 'discover' | 'learn' | 'product' | 'compare'
 
 const steps = [
-  { id: 'ask', label: 'Richiesta', short: 'ASK' },
-  { id: 'configure', label: 'Configura', short: 'CONFIGURE' },
-  { id: 'discover', label: 'Scoperta', short: 'DISCOVER' },
+  { id: 'ask', label: 'Request', short: 'ASK' },
+  { id: 'configure', label: 'Configure', short: 'CONFIGURE' },
+  { id: 'discover', label: 'Discover', short: 'DISCOVER' },
   { id: 'learn', label: 'Feedback', short: 'LEARN' },
-  { id: 'product', label: 'Scelta esatta', short: 'CHOOSE' },
-  { id: 'compare', label: 'Confronto', short: 'COMPARE' },
+  { id: 'product', label: 'Choose', short: 'CHOOSE' },
+  { id: 'compare', label: 'Compare', short: 'COMPARE' },
 ] as const
 
 function currentIndex(stage: Stage): number {
@@ -26,7 +26,7 @@ interface Props {
 export default function StageProgress({ stage, canConfigure, canChoose = false, canCompare = false, onNavigate }: Props) {
   const index = currentIndex(stage)
   return (
-    <nav className="stage-progress" aria-label="Avanzamento del percorso guidato">
+    <nav className="stage-progress" aria-label="Guided shopping progress">
       <div className="stage-progress__track" aria-hidden="true">
         <span style={{ width: `${(index / (steps.length - 1)) * 100}%` }} />
       </div>
@@ -34,9 +34,9 @@ export default function StageProgress({ stage, canConfigure, canChoose = false, 
         {steps.map((step, i) => {
           const active = i === index
           const done = i < index
-          const reason = step.id !== 'ask' && !canConfigure ? 'Invia prima due messaggi in ASK.'
-            : step.id === 'product' && !canChoose ? 'Apri prima un prodotto dai risultati.'
-              : step.id === 'compare' && !canCompare ? 'Seleziona prima almeno due prodotti da confrontare.' : undefined
+          const reason = step.id !== 'ask' && !canConfigure ? 'Send two messages in ASK first.'
+            : step.id === 'product' && !canChoose ? 'Open a product from the results first.'
+              : step.id === 'compare' && !canCompare ? 'Select at least two products to compare first.' : undefined
           const locked = Boolean(reason)
           return (
             <li key={step.id} className={active ? 'is-active' : done ? 'is-done' : ''}>

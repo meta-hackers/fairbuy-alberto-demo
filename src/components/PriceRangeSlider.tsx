@@ -19,8 +19,8 @@ export default function PriceRangeSlider({ bounds, value, onChange, step = 100, 
   return (
     <div className="price-slider" data-testid="price-slider">
       <div className="price-slider__values" aria-live="polite">
-        <span>Prezzo minimo<output htmlFor={minId} data-testid={`${idPrefix}-min-value`}>{formatCHF(value.min)}</output></span>
-        <span>Prezzo massimo<output htmlFor={maxId} data-testid={`${idPrefix}-max-value`}>{formatCHF(value.max)}</output></span>
+        <span>Minimum price<output htmlFor={minId} data-testid={`${idPrefix}-min-value`}>{formatCHF(value.min)}</output></span>
+        <span>Maximum price<output htmlFor={maxId} data-testid={`${idPrefix}-max-value`}>{formatCHF(value.max)}</output></span>
       </div>
       <div className="price-slider__controls">
         <div className="price-slider__track" aria-hidden="true">
@@ -34,7 +34,7 @@ export default function PriceRangeSlider({ bounds, value, onChange, step = 100, 
           max={bounds.max}
           step={step}
           value={value.min}
-          aria-label="Prezzo minimo"
+          aria-label="Minimum price"
           aria-valuetext={formatCHF(value.min)}
           onChange={(event) => onChange({ min: Math.min(Number(event.target.value), value.max), max: value.max })}
         />
@@ -46,12 +46,12 @@ export default function PriceRangeSlider({ bounds, value, onChange, step = 100, 
           max={bounds.max}
           step={step}
           value={value.max}
-          aria-label="Prezzo massimo"
+          aria-label="Maximum price"
           aria-valuetext={formatCHF(value.max)}
           onChange={(event) => onChange({ min: value.min, max: Math.max(Number(event.target.value), value.min) })}
         />
       </div>
-      <p className="hint">Trascina i due cursori o usa le frecce della tastiera. Il minimo non può superare il massimo.</p>
+      <p className="hint">Drag either thumb or use the arrow keys. The minimum cannot exceed the maximum.</p>
     </div>
   )
 }

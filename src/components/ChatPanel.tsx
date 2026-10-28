@@ -16,7 +16,7 @@ interface Props {
   placeholder?: string
 }
 
-export default function ChatPanel({ messages, revealed, characteristicCount, onSend, onConfigure, placeholder = 'Es. gioco soprattutto FPS a 1440p, budget massimo 1800 CHF' }: Props) {
+export default function ChatPanel({ messages, revealed, characteristicCount, onSend, onConfigure, placeholder = 'e.g. I mostly play FPS at 1440p, maximum budget CHF 1,800' }: Props) {
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const logRef = useRef<HTMLDivElement>(null)
@@ -44,22 +44,22 @@ export default function ChatPanel({ messages, revealed, characteristicCount, onS
   }
 
   return (
-    <section className="chat-panel" aria-label="Assistente FairBuy simulato">
+    <section className="chat-panel" aria-label="FairBuy scripted assistant">
       <div className="chat-panel__header">
         <div><span className="logo-mark" aria-hidden="true">◇</span><strong>FairBuy Assistant</strong></div>
-        <span className="soft-tag">demo · risposte simulate, nessuna AI</span>
+        <span className="soft-tag">demo · scripted replies, no AI</span>
       </div>
       <div className="chat-log" aria-live="polite" aria-relevant="additions" ref={logRef} data-testid="chat-log">
         {messages.length === 0 ? (
           <p className="chat-empty" data-testid="chat-empty">
-            Nessun messaggio. Scrivi la tua richiesta per iniziare: l’assistente è scriptato e non usa un modello AI.
+            No messages yet. Type your request to begin. This assistant is scripted and does not use an AI model.
           </p>
         ) : null}
         {messages.map((message) => (
           <div className={`bubble bubble--${message.role}`} key={message.id} data-testid={`message-${message.role}`} data-simulated={message.simulated ? 'true' : undefined}>
             <span className="bubble__role">
-              {message.role === 'user' ? 'Tu' : message.role === 'system' ? 'Sistema demo' : 'FairBuy'}
-              {message.simulated ? <span className="bubble__sim">simulata · nessuna AI</span> : null}
+              {message.role === 'user' ? 'You' : message.role === 'system' ? 'Demo system' : 'FairBuy'}
+              {message.simulated ? <span className="bubble__sim">simulated · no AI</span> : null}
             </span>
             <p>{message.text}</p>
           </div>
@@ -68,20 +68,20 @@ export default function ChatPanel({ messages, revealed, characteristicCount, onS
       <div className="chat-actions">
         {!revealed ? (
           <p className="hint" data-testid="ask-progress">
-            Messaggi utente: {Math.min(userCount, 2)}/2. Dopo il secondo messaggio compaiono le caratteristiche simulate.
+            Your messages: {Math.min(userCount, 2)}/2. Mock characteristics appear after your second message.
           </p>
         ) : (
           <div className="chat-actions__row chat-actions__row--between">
             <span className="hint" data-testid="chat-revealed-note">
-              {characteristicCount} caratteristiche pronte. Puoi continuare a scrivere: non vengono azzerate.
+              {characteristicCount} characteristics ready. Keep chatting; they will not be reset.
             </span>
             <button type="button" className="button button--primary" onClick={onConfigure} data-testid="go-configure">
-              Configura prezzo e filtri →
+              Configure price and filters →
             </button>
           </div>
         )}
         <form className="composer" aria-label="Messaggio per l'assistente simulato" onSubmit={(event) => { event.preventDefault(); submitDraft() }}>
-          <label className="composer__label" htmlFor="ask-free-text">Scrivi la tua risposta</label>
+          <label className="composer__label" htmlFor="ask-free-text">Your message</label>
           <textarea
             id="ask-free-text"
             className="composer__input"
@@ -97,8 +97,8 @@ export default function ChatPanel({ messages, revealed, characteristicCount, onS
             data-testid="ask-input"
           />
           <div className="chat-actions__row">
-            <button type="submit" className="button button--ghost button--small" disabled={draftIsEmpty} data-testid="ask-send">Invia</button>
-            <span id="ask-composer-hint" className="hint">Invio invia · Shift+Invio va a capo · risposta simulata, nessuna AI; il testo non modifica le caratteristiche.</span>
+            <button type="submit" className="button button--ghost button--small" disabled={draftIsEmpty} data-testid="ask-send">Send</button>
+            <span id="ask-composer-hint" className="hint">Enter sends · Shift+Enter adds a line · scripted reply, no AI; your text does not change characteristics.</span>
           </div>
         </form>
       </div>

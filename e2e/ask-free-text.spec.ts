@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const FIRST_MESSAGE = 'Mi serve un PC per gaming competitivo e AAA'
-const SECOND_MESSAGE = 'Budget 2000 CHF, 1440p, GPU e RAM importanti'
+const FIRST_MESSAGE = 'I need a PC for competitive and AAA gaming'
+const SECOND_MESSAGE = 'Budget CHF 2,000, 1440p; GPU and RAM matter'
 
 async function revealCharacteristics(page: Page) {
   await page.goto('/')
@@ -21,7 +21,7 @@ test('ASK starts genuinely empty and the first message gets one mocked follow-up
   await expect(page.getByTestId('message-assistant')).toHaveCount(0)
   await expect(page.getByTestId('characteristics-panel')).toHaveCount(0)
   await expect(page.getByTestId('go-configure')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'FPS competitivi' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Competitive FPS' })).toHaveCount(0)
 
   const input = page.getByTestId('ask-input')
   const send = page.getByTestId('ask-send')
@@ -34,8 +34,8 @@ test('ASK starts genuinely empty and the first message gets one mocked follow-up
   await expect(page.getByTestId('message-assistant')).toHaveCount(1)
   const reply = page.getByTestId('message-assistant').last()
   await expect(reply).toContainText('budget')
-  await expect(reply).toContainText('preferenze')
-  await expect(reply.locator('.bubble__sim')).toContainText('nessuna AI')
+  await expect(reply).toContainText('preferences')
+  await expect(reply.locator('.bubble__sim')).toContainText('no AI')
   await expect(page.getByTestId('characteristics-panel')).toHaveCount(0)
   await expect(page.getByTestId('go-configure')).toHaveCount(0)
   await expect(input).toHaveValue('')
@@ -46,7 +46,7 @@ test('second user message gets the exact reveal reply and characteristics, then 
 
   const assistantMessages = page.getByTestId('message-assistant')
   await expect(assistantMessages).toHaveCount(2)
-  await expect(assistantMessages.last().locator('p')).toHaveText('ok, ho abbastanza informazioni')
+  await expect(assistantMessages.last().locator('p')).toHaveText('ok, I have enough information')
   await expect(page.getByTestId('characteristic-item')).toHaveCount(5)
   await expect(page.getByTestId('go-configure')).toBeVisible()
 
@@ -55,15 +55,15 @@ test('second user message gets the exact reveal reply and characteristics, then 
   await input.press('Enter')
 
   await expect(page.getByTestId('message-user')).toHaveCount(3)
-  await expect(page.getByTestId('message-assistant').last()).toContainText('caratteristica RAM')
-  await expect(page.getByTestId('message-assistant').last()).toContainText('nessuna AI')
+  await expect(page.getByTestId('message-assistant').last()).toContainText('RAM characteristic')
+  await expect(page.getByTestId('message-assistant').last()).toContainText('no AI')
 
   await input.fill('<b>test</b> input sconosciuto')
   await input.press('Enter')
   const lastUser = page.getByTestId('message-user').last()
   await expect(lastUser).toContainText('<b>test</b> input sconosciuto')
   await expect(lastUser.locator('b')).toHaveCount(0)
-  await expect(page.getByTestId('message-assistant').last()).toContainText('Non interpreto')
+  await expect(page.getByTestId('message-assistant').last()).toContainText('cannot reliably interpret')
   await expect(page.getByTestId('message-user')).toHaveCount(4)
   await expect(page.getByTestId('characteristic-item')).toHaveCount(5)
   await expect(input).toBeEnabled()
@@ -100,22 +100,22 @@ test('enter sends and shift+enter adds a newline', async ({ page }) => {
 test('custom characteristic add/remove persists through Configure and back to ASK', async ({ page }) => {
   await revealCharacteristics(page)
 
-  await page.getByRole('button', { name: 'Rimuovi caratteristica: GPU: RTX 4070 o superiore' }).click()
+  await page.getByRole('button', { name: 'Remove characteristic: GPU: RTX 4070 or higher' }).click()
   await expect(page.getByTestId('characteristic-item')).toHaveCount(4)
 
   await page.getByTestId('custom-characteristic-input').fill('Wi-Fi 7')
   await page.getByTestId('add-characteristic').click()
   await expect(page.getByTestId('characteristic-item')).toHaveCount(5)
   await expect(page.getByText('Wi-Fi 7')).toBeVisible()
-  await expect(page.getByTestId('unsupported-note')).toContainText('non vengono usate per il match')
+  await expect(page.getByTestId('unsupported-note')).toContainText('excluded from matching')
 
   await page.getByTestId('go-configure').click()
   await expect(page.getByTestId('configure-page')).toBeVisible()
   await expect(page.getByTestId('characteristic-item')).toHaveCount(5)
   await expect(page.getByText('Wi-Fi 7')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Rimuovi caratteristica: GPU: RTX 4070 o superiore' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Remove characteristic: GPU: RTX 4070 or higher' })).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Rimuovi caratteristica: Wi-Fi 7' }).click()
+  await page.getByRole('button', { name: 'Remove characteristic: Wi-Fi 7' }).click()
   await expect(page.getByTestId('characteristic-item')).toHaveCount(4)
 
   await page.getByTestId('back-to-ask').click()
@@ -149,11 +149,11 @@ test('first message routes to a separate relay demo, second reveals relay-specif
   await input.press('Enter')
   await expect(page.getByTestId('relay-shell')).toBeVisible()
   await expect(page.getByTestId('message-user')).toHaveCount(1)
-  await expect(page.getByTestId('message-assistant').last()).toContainText('puissance réelle')
+  await expect(page.getByTestId('message-assistant').last()).toContainText('Actual wattage is unknown')
   await input.fill('230V AC, neutral present, budget 60 CHF')
   await input.press('Enter')
-  await expect(page.getByTestId('message-assistant').last().locator('p')).toHaveText('ok, ho abbastanza informazioni')
-  await expect(page.getByText(/Puissance réelle du néon : INCONNUE/)).toBeVisible()
+  await expect(page.getByTestId('message-assistant').last().locator('p')).toHaveText('ok, I have enough information')
+  await expect(page.getByText('Actual neon load: UNKNOWN')).toBeVisible()
   await page.getByTestId('go-configure').click()
   await expect(page.getByTestId('configure-page')).toContainText('200 W LED / 1.5 A')
   await expect(page.getByTestId('stage-product')).toHaveCount(1)
@@ -167,7 +167,7 @@ test('first message routes to a separate relay demo, second reveals relay-specif
   await page.clock.runFor(2000)
   await expect(page.getByTestId('product-card-led-trading')).toBeVisible()
   await page.getByTestId('expand-led-trading').click()
-  await expect(page.getByTestId('product-card-led-trading')).toContainText('Contradiction de la source')
+  await expect(page.getByTestId('product-card-led-trading')).toContainText('Source conflict')
   await page.screenshot({ path: 'artifacts/screenshots/relay-discover-expanded.png', fullPage: true })
 })
 
@@ -178,10 +178,10 @@ test('later relay chat cannot silently switch category; ambiguous Nintendo Switc
   await expect(page.getByTestId('relay-shell')).toBeVisible()
   await page.getByTestId('ask-input').fill('Actually a gaming PC now')
   await page.getByTestId('ask-input').press('Enter')
-  await expect(page.getByRole('heading', { name: 'Relais smart pour néon' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Smart relay for neon light' })).toBeVisible()
 
   await page.goto('/')
   await page.getByTestId('ask-input').fill('Nintendo Switch')
   await page.getByTestId('ask-input').press('Enter')
-  await expect(page.getByText(/Quale categoria intendi/)).toBeVisible()
+  await expect(page.getByText(/Which category do you mean/)).toBeVisible()
 })

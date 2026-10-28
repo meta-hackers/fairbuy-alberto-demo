@@ -48,7 +48,7 @@ describe('computeMatch', () => {
   it('marks a product unknown when only an in-budget offer has unconfirmed stock', () => {
     const match = computeMatch(product('vortex'), defaultBrief, productOffers('vortex'))
     expect(match.tier).toBe('unknown')
-    expect(match.unknown.join(' ')).toContain('disponibilità')
+    expect(match.unknown.join(' ')).toContain('availability')
     expect(match.bestOffer).toBe(2649)
   })
 
@@ -61,7 +61,7 @@ describe('computeMatch', () => {
   it('excludes a product when every confirmed offer is over budget', () => {
     const match = computeMatch(product('titan'), defaultBrief, productOffers('titan'))
     expect(match.tier).toBe('conflict')
-    expect(match.hardFailures.join(' ')).toContain('tetto')
+    expect(match.hardFailures.join(' ')).toContain('budget ceiling')
   })
 })
 

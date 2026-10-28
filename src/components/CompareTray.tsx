@@ -12,18 +12,18 @@ interface Props {
 export function CompareTray({ products, onOpen, onRemove, onClear }: Props) {
   if (products.length === 0) return null
   return (
-    <div className="compare-tray" role="region" aria-label="Prodotti selezionati per il confronto">
+    <div className="compare-tray" role="region" aria-label="Products selected for comparison">
       <div className="compare-tray__items">
         {products.map((product) => (
           <span className="compare-pill" key={product.id}>
             {product.name}
-            <button type="button" onClick={() => onRemove(product.id)} aria-label={`Rimuovi ${product.name} dal confronto`}>×</button>
+            <button type="button" onClick={() => onRemove(product.id)} aria-label={`Remove ${product.name} from comparison`}>×</button>
           </span>
         ))}
       </div>
       <div className="compare-tray__actions">
-        <button type="button" className="button button--ghost button--small" onClick={onClear}>Svuota</button>
-        <button type="button" className="button button--primary button--small" onClick={onOpen} data-testid="open-compare">Confronta {products.length} prodotti</button>
+        <button type="button" className="button button--ghost button--small" onClick={onClear}>Clear</button>
+        <button type="button" className="button button--primary button--small" onClick={onOpen} data-testid="open-compare">Compare {products.length} products</button>
       </div>
     </div>
   )
@@ -39,8 +39,8 @@ export function CompareModal({ products, matches, onClose }: { products: Product
     <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal compare-modal" role="dialog" aria-modal="true" aria-labelledby="compare-title" data-testid="compare-modal">
         <div className="modal__header">
-          <div><p className="eyebrow">Confronto illustrativo</p><h2 id="compare-title">Prodotti a confronto</h2></div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Chiudi confronto" autoFocus>×</button>
+          <div><p className="eyebrow">Illustrative comparison</p><h2 id="compare-title">Products compared</h2></div>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Close comparison" autoFocus>×</button>
         </div>
         <div className="compare-grid">
           {products.map((product) => {
@@ -49,18 +49,18 @@ export function CompareModal({ products, matches, onClose }: { products: Product
               <article className="compare-col" key={product.id}>
                 <h3>{product.name}</h3>
                 <p className="muted">{product.config.cpu}<br />{product.config.gpu} · {product.config.ramGB} GB · {product.config.storageGB / 1000} TB</p>
-                <span className={`tier-badge tier-badge--${match?.tier ?? 'unknown'}`}>{match?.tier === 'strong' ? 'Match forte' : match?.tier === 'preference' ? 'Compromesso' : match?.tier === 'conflict' ? 'Escluso' : 'Da verificare'}</span>
+                <span className={`tier-badge tier-badge--${match?.tier ?? 'unknown'}`}>{match?.tier === 'strong' ? 'Strong match' : match?.tier === 'preference' ? 'Trade-off' : match?.tier === 'conflict' ? 'Excluded' : 'Needs verification'}</span>
                 <dl>
-                  <dt>Miglior totale</dt><dd>{match?.bestOffer ? formatCHF(match.bestOffer) : 'non confermato'}</dd>
+                  <dt>Best total</dt><dd>{match?.bestOffer ? formatCHF(match.bestOffer) : 'unconfirmed'}</dd>
                   <dt>Match</dt><dd>{match?.score ? `${Math.round(match.score)}%` : 'n/d'}</dd>
-                  <dt>Condizione</dt><dd>{product.config.condition}</dd>
-                  <dt>Ragioni</dt><dd>{match?.reasons.slice(0, 2).join(' · ')}</dd>
+                  <dt>Condition</dt><dd>{product.config.condition}</dd>
+                   <dt>Reasons</dt><dd>{match?.reasons.slice(0, 2).join(' · ')}</dd>
                 </dl>
               </article>
             )
           })}
         </div>
-        <p className="hint">Punteggi illustrativi. Le configurazioni non vengono fuse: ogni colonna è un prodotto esatto.</p>
+        <p className="hint">Illustrative scores. Configurations are not merged; each column is an exact product.</p>
       </div>
     </div>
   )

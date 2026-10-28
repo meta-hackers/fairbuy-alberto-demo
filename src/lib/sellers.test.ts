@@ -25,7 +25,7 @@ describe('seller offer grouping and totals', () => {
     expect(range.max).toBe(2029)
     expect(range.count).toBe(4)
     expect(range.unknownCount).toBe(1)
-    expect(range.basis).toContain('Totali consegnati confermati')
+    expect(range.basis).toContain('Confirmed delivered totals')
   })
 
   it('does not merge different exact configurations', () => {

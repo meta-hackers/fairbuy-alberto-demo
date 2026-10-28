@@ -39,29 +39,29 @@ export const PRODUCT_PRICE_BOUNDS: PriceBounds = { min: 1000, max: 3000 }
 export const DEFAULT_PRICE_RANGE: PriceBounds = { min: 1000, max: 3000 }
 
 export function gpuCharacteristicLabel(value: number, mode: CharacteristicMode = 'preferred'): string {
-  return `GPU: RTX ${value} o superiore${mode === 'required' ? ' · obbligatoria' : ''}`
+  return `GPU: RTX ${value} or higher${mode === 'required' ? ' · required' : ''}${mode === 'preferred' ? ' · preference only' : ''}`
 }
 
 export function ramCharacteristicLabel(value: number, mode: CharacteristicMode = 'preferred'): string {
-  return `RAM: ${value} GB${mode === 'required' ? ' · obbligatoria' : ''}`
+  return `RAM: ${value} GB${mode === 'required' ? ' · required' : ''}${mode === 'preferred' ? ' · preference only' : ''}`
 }
 
 export function setCharacteristicMode(characteristic: Characteristic, mode: CharacteristicMode): Characteristic {
   if (characteristic.kind === 'gpu') {
-    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: `${gpuCharacteristicLabel(Number(characteristic.value), mode)}${mode === 'preferred' ? ' · solo preferenza' : ''}` }
+    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: `${gpuCharacteristicLabel(Number(characteristic.value), mode)}${mode === 'preferred' ? ' · preference only' : ''}` }
   }
   if (characteristic.kind === 'ram') {
-    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: `${ramCharacteristicLabel(Number(characteristic.value), mode)}${mode === 'preferred' ? ' · solo preferenza' : ''}` }
+    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: `${ramCharacteristicLabel(Number(characteristic.value), mode)}${mode === 'preferred' ? ' · preference only' : ''}` }
   }
   return characteristic
 }
 
 export const DEFAULT_CHARACTERISTICS: Characteristic[] = [
-  { id: 'use', label: 'Uso: gaming competitivo e AAA', kind: 'use', supported: true },
-  { id: 'resolution', label: 'Risoluzione: 1440p · 120 fps', kind: 'resolution', value: '1440p', supported: true },
+  { id: 'use', label: 'Use: competitive and AAA gaming', kind: 'use', supported: true },
+  { id: 'resolution', label: 'Resolution: 1440p · 120 fps', kind: 'resolution', value: '1440p', supported: true },
   { id: 'gpu', label: gpuCharacteristicLabel(4070), kind: 'gpu', value: 4070, mode: 'preferred', supported: true },
   { id: 'ram', label: ramCharacteristicLabel(32), kind: 'ram', value: 32, mode: 'preferred', supported: true },
-  { id: 'condition', label: 'Condizione: solo nuovo', kind: 'condition', supported: true },
+  { id: 'condition', label: 'Condition: new only', kind: 'condition', supported: true },
 ]
 
 const RESOLUTION_RANK: Record<Resolution, number> = {
@@ -102,7 +102,7 @@ export function matchesCharacteristic(product: Product, characteristic: Characte
     return product.config.ramGB >= Number(characteristic.value)
   }
   if (characteristic.kind === 'condition') {
-    return product.config.condition === 'Nuovo'
+    return product.config.condition === 'New'
   }
   return true
 }

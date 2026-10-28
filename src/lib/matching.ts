@@ -43,64 +43,64 @@ export function computeMatch(product: Product, brief: Brief, productOffers: Offe
   const unknownCosts = productOffers.filter((offer) => totalOf(offer) === null)
   const withinBudget = confirmedTotals.filter((total) => total <= brief.budgetMax)
 
-  if (brief.newOnly && product.config.condition !== 'Nuovo') {
-    hardFailures.push('Condizione diversa da “solo nuovo”.')
+  if (brief.newOnly && product.config.condition !== 'New') {
+    hardFailures.push('Condition differs from “new only”.')
   }
   if (brief.avoidGpu.includes(product.config.gpu)) {
-    hardFailures.push(`GPU ${product.config.gpu} presente nella lista “da evitare”.`)
+    hardFailures.push(`GPU ${product.config.gpu} is on the “avoid” list.`)
   }
   if (brief.gpu.mode === 'required' && gpuValue(product.config.gpu) < brief.gpu.value) {
-    hardFailures.push(`GPU ${product.config.gpu}: sotto il minimo obbligatorio RTX ${brief.gpu.value}.`)
+    hardFailures.push(`GPU ${product.config.gpu}: below the required RTX ${brief.gpu.value} minimum.`)
   }
   if (brief.ram.mode === 'required' && product.config.ramGB < brief.ram.value) {
-    hardFailures.push(`RAM ${product.config.ramGB} GB: sotto il minimo obbligatorio ${brief.ram.value} GB.`)
+    hardFailures.push(`RAM ${product.config.ramGB} GB: below the required ${brief.ram.value} GB minimum.`)
   }
 
   if (productOffers.length === 0) {
-    unknown.push('Nessuna offerta disponibile dalle fonti attive.')
+    unknown.push('No offers available from active sources.')
   } else if (confirmedTotals.length === 0 && unknownCosts.length === 0) {
-    hardFailures.push('Nessun prezzo o costo disponibile.')
+    hardFailures.push('No price or cost information available.')
   } else if (confirmedTotals.length > 0 && withinBudget.length === 0) {
     if (unknownCosts.length > 0) {
-      unknown.push(`Nessuna offerta confermata entro ${formatCHF(brief.budgetMax)}; ${unknownCosts.length} totale da confermare.`)
+      unknown.push(`No confirmed offer within ${formatCHF(brief.budgetMax)}; ${unknownCosts.length} total(s) unconfirmed.`)
     } else {
-      hardFailures.push(`Tutte le offerte confermate superano il tetto di ${formatCHF(brief.budgetMax)}.`)
+      hardFailures.push(`All confirmed offers exceed the ${formatCHF(brief.budgetMax)} budget ceiling.`)
     }
   } else if (confirmedTotals.length === 0 && unknownCosts.length > 0) {
-    unknown.push(`Prezzo finale non confermato per ${unknownCosts.length} offerta/e.`)
+    unknown.push(`Final price unconfirmed for ${unknownCosts.length} offer(s).`)
   }
 
   if (brief.minHard && best !== null && best < brief.budgetMin) {
-    hardFailures.push(`Sotto il minimo obbligatorio di ${formatCHF(brief.budgetMin)}.`)
+    hardFailures.push(`Below the mandatory minimum of ${formatCHF(brief.budgetMin)}.`)
   }
   const inStockWithinBudget = groups.confirmedInStock.filter((row) => (row.total ?? Infinity) <= brief.budgetMax)
   if (withinBudget.length > 0 && inStockWithinBudget.length === 0) {
-    unknown.push('Offerta entro budget con disponibilità non confermata.')
+    unknown.push('An offer is within budget, but availability is unconfirmed.')
   }
 
   const gpuMeets = gpuValue(product.config.gpu) >= brief.gpu.value
   const ramMeets = product.config.ramGB >= brief.ram.value
   if (!gpuMeets && brief.gpu.mode === 'preferred') {
-    softMisses.push(`GPU ${product.config.gpu}; preferisci RTX ${brief.gpu.value} o superiore.`)
+    softMisses.push(`GPU ${product.config.gpu}; preference is RTX ${brief.gpu.value} or higher.`)
   }
   if (!ramMeets && brief.ram.mode === 'preferred') {
-    softMisses.push(`RAM ${product.config.ramGB} GB; preferisci ${brief.ram.value} GB.`)
+    softMisses.push(`RAM ${product.config.ramGB} GB; preference is ${brief.ram.value} GB.`)
   }
   if (best !== null && best > brief.budgetMax) {
-    softMisses.push(`Il totale confermato più basso con stock certo è ${formatCHF(best)}, sopra il tetto di ${formatCHF(brief.budgetMax)}.`)
+    softMisses.push(`The lowest confirmed total with known stock is ${formatCHF(best)}, above the ${formatCHF(brief.budgetMax)} ceiling.`)
   } else if (best !== null && best > brief.budgetMax * 0.9) {
-    softMisses.push(`Vicino al tetto di budget (${formatCHF(best)} su ${formatCHF(brief.budgetMax)}).`)
+    softMisses.push(`Near the budget ceiling (${formatCHF(best)} of ${formatCHF(brief.budgetMax)}).`)
   }
   if (!brief.minHard && best !== null && best < brief.budgetMin) {
-    softMisses.push(`Sotto il target minimo di ${formatCHF(brief.budgetMin)}: il minimo è una preferenza soft.`)
+    softMisses.push(`Below the ${formatCHF(brief.budgetMin)} target: the minimum is a soft preference.`)
   }
 
-  if (gpuMeets) reasons.push(`GPU ${product.config.gpu} ${brief.gpu.mode === 'required' ? 'obbligatoria' : 'preferita'} rispettata`)
-  if (ramMeets) reasons.push(`${product.config.ramGB} GB di RAM ${brief.ram.mode === 'required' ? 'obbligatori' : 'preferiti'} rispettati`)
-  if (best !== null) reasons.push(`Migliore totale consegnato confermato: ${formatCHF(best)}`)
-  if (range?.unknownCount) reasons.push(`${range.unknownCount} offerta/e con totale non confermato`)
-  if (product.config.condition === 'Nuovo') reasons.push('Condizione nuova')
-  reasons.push('Dati fixture sintetiche, nessuna offerta reale')
+  if (gpuMeets) reasons.push(`GPU ${product.config.gpu} ${brief.gpu.mode} requirement met`)
+  if (ramMeets) reasons.push(`${product.config.ramGB} GB RAM ${brief.ram.mode} requirement met`)
+  if (best !== null) reasons.push(`Lowest confirmed delivered total: ${formatCHF(best)}`)
+  if (range?.unknownCount) reasons.push(`${range.unknownCount} offer(s) with unconfirmed totals`)
+  if (product.config.condition === 'New') reasons.push('New condition')
+  reasons.push('Synthetic fixture data; no real offers')
 
   let tier: MatchResult['tier'] = 'strong'
   if (hardFailures.length > 0) tier = 'conflict'
@@ -157,22 +157,22 @@ export function clarificationsFor(reasons: DismissReason[], brief: Brief): Clari
   if (reasons.includes('ram')) {
     prompts.push({
       key: 'ram',
-      question: `Vuoi rendere ${brief.ram.value} GB di RAM obbligatori o solo preferiti?`,
+      question: `Should ${brief.ram.value} GB of RAM be required or preferred?`,
       options: [
-        { value: 'required', label: `Obbligatori (${brief.ram.value} GB minimo)` },
-        { value: 'preferred', label: 'Solo una preferenza' },
-        { value: 'keep', label: 'Non cambiare il brief' },
+        { value: 'required', label: `Required (${brief.ram.value} GB minimum)` },
+        { value: 'preferred', label: 'Preference only' },
+        { value: 'keep', label: 'Keep current settings' },
       ],
     })
   }
   if (reasons.includes('gpu')) {
     prompts.push({
       key: 'gpu',
-      question: `Vuoi rendere RTX ${brief.gpu.value} o superiore obbligatoria o solo preferita?`,
+      question: `Should RTX ${brief.gpu.value} or higher be required or preferred?`,
       options: [
-        { value: 'required', label: `Obbligatoria (RTX ${brief.gpu.value}+)` },
-        { value: 'preferred', label: 'Solo una preferenza' },
-        { value: 'keep', label: 'Non cambiare il brief' },
+        { value: 'required', label: `Required (RTX ${brief.gpu.value}+)` },
+        { value: 'preferred', label: 'Preference only' },
+        { value: 'keep', label: 'Keep current settings' },
       ],
     })
   }
@@ -203,14 +203,14 @@ export function applyDismissal(
     const learned = addLearned(next, {
       id: `ram-${next.ram.mode}-${next.ram.value}`,
       kind: 'ram',
-      label: `RAM ${next.ram.value} GB ${next.ram.mode === 'required' ? 'obbligatoria' : 'preferita'}`,
+      label: `RAM: ${next.ram.value} GB${next.ram.mode === 'preferred' ? ' · preference only' : ' · required'}`,
       value: next.ram.value,
       previousMode: brief.ram.mode,
       previousValue: brief.ram.value,
     })
     next = learned.brief
     if (learned.added) added.push(learned.added)
-    messages.push(ramMode === 'required' ? 'Hai reso la RAM un requisito obbligatorio.' : 'Ho registrato la RAM come preferenza, non come regola obbligatoria.')
+    messages.push(ramMode === 'required' ? 'You made RAM a requirement.' : 'RAM is recorded as a preference, not a requirement.')
   }
   if (reasons.includes('gpu')) {
     if (gpuMode === 'required') next.gpu = { ...next.gpu, mode: 'required' }
@@ -218,14 +218,14 @@ export function applyDismissal(
     const learned = addLearned(next, {
       id: `gpu-${next.gpu.mode}-${next.gpu.value}`,
       kind: 'gpu',
-      label: `GPU RTX ${next.gpu.value}+ ${next.gpu.mode === 'required' ? 'obbligatoria' : 'preferita'}`,
+      label: `RTX ${next.gpu.value}+ GPU ${next.gpu.mode}`,
       value: next.gpu.value,
       previousMode: brief.gpu.mode,
       previousValue: brief.gpu.value,
     })
     next = learned.brief
     if (learned.added) added.push(learned.added)
-    messages.push(gpuMode === 'required' ? 'Hai reso la GPU un requisito obbligatorio.' : 'Ho registrato la GPU come preferenza, non come regola obbligatoria.')
+    messages.push(gpuMode === 'required' ? 'You made the GPU a requirement.' : 'The GPU is recorded as a preference, not a requirement.')
   }
   if (reasons.includes('avoidGpu')) {
     if (!next.avoidGpu.includes(product.config.gpu)) {
@@ -234,31 +234,31 @@ export function applyDismissal(
     const learned = addLearned(next, {
       id: `avoid-${product.config.gpu}`,
       kind: 'avoidGpu',
-      label: `Evita ${product.config.gpu}`,
+      label: `Avoid ${product.config.gpu}`,
       value: product.config.gpu,
     })
     next = learned.brief
     if (learned.added) added.push(learned.added)
-    messages.push(`Ho aggiunto ${product.config.gpu} alle GPU da evitare. Puoi rimuoverla dal brief.`)
+    messages.push(`Added ${product.config.gpu} to the avoid list. You can remove it from your settings.`)
   }
   if (reasons.includes('expensive')) {
     const learned = addLearned(next, {
       id: 'value-priority',
       kind: 'value',
-      label: 'Dare priorità al risparmio',
+      label: 'Prioritize savings',
       value: 'value',
     })
     next = learned.brief
     if (learned.added) added.push(learned.added)
-    messages.push('Ho aggiunto “priorità al risparmio” come preferenza soft; il tetto di budget non cambia.')
+    messages.push('Added “prioritize savings” as a soft preference; the budget ceiling is unchanged.')
   }
   if (reasons.includes('other') && brief.notes.trim()) {
-    messages.push('La tua nota è stata salvata nel brief senza creare regole automatiche.')
+    messages.push('Your note was saved without creating automatic rules.')
   }
   if (reasons.includes('skip')) {
-    messages.push('Prodotto rimosso senza apprendere preferenze. Puoi annullare.')
+    messages.push('Product excluded without learning a preference. You can undo this.')
   }
-  return { brief: next, message: messages.join(' ') || 'Prodotto rimosso.', learnedAdded: added }
+  return { brief: next, message: messages.join(' ') || 'Product excluded.', learnedAdded: added }
 }
 
 export function removeLearned(brief: Brief, learnedId: string): Brief {

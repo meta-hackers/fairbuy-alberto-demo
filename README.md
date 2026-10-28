@@ -1,211 +1,160 @@
-# FairBuy — demo gaming PC (frontend-only)
+# FairBuy — gaming PC demo (frontend only)
 
-Demo statica e interattiva del percorso **FairBuy Guided Shopping** per un PC gaming nuovo.
-Non è un prodotto live: prodotti, configurazioni, prezzi, retailer, stock e timestamp sono
-**fixture sintetiche inventate**. Non esistono AI, backend, autenticazione, scraping, checkout,
-link retailer reali o contatti con venditori.
+Static, interactive demo of the **FairBuy Guided Shopping** journey for a new gaming PC. This is not a live product: products, configurations, prices, retailers, stock, and timestamps are fictional synthetic fixtures. There is no AI, backend, authentication, scraping, checkout, real retailer link, or seller contact.
 
-L’interfaccia parte da una chat **genuinamente vuota** e accompagna l’utente attraverso:
+The interface starts with a genuinely empty chat and guides the user through:
 
 **ASK → CONFIGURE → DISCOVER → LEARN → CHOOSE → COMPARE**
 
-La categoria PC resta il fallback. Un primo messaggio che nomina un interruttore/switch
-smart instrada invece a una demo distinta di relè per neon. Solo il primo messaggio (o una
-risposta alla domanda di disambiguazione) sceglie categoria; i messaggi successivi non la
-cambiano.
+PC is the fallback category. A first message mentioning a smart switch routes to a separate neon relay demo. Only the first message (or a reply to a category clarification) selects the category; later messages do not change it. The `pc`, `computer`, `switch`, and `interruttore` routing aliases are retained.
 
-## Cosa è possibile provare
+## What you can try
 
-- **ASK vuota**: zero messaggi precompilati e nessuna caratteristica preimpostata.
-- Primo messaggio libero → una sola risposta simulata che chiede uso, budget e preferenze.
-- Secondo messaggio → risposta esatta `ok, ho abbastanza informazioni` e comparsa delle
-  caratteristiche simulate (uso, risoluzione, GPU, RAM, condizione).
-- Chat sempre scrivibile anche dopo la comparsa delle caratteristiche; le risposte successive
-  sono deterministiche, etichettate “simulata · nessuna AI” e non azzerano le caratteristiche.
-- Caratteristiche **rimovibili singolarmente** e **aggiungibili come testo libero**; le modifiche
-  restano attive passando tra ASK, CONFIGURE e DISCOVER.
-- La barra mantiene tutti i sei stage: quelli non ancora raggiungibili sono disabilitati con
-  spiegazione; su schermi stretti sono disposti in due righe.
-- Card sottili con nome e minimo prezzo confermato; espansione accessibile mostra dettagli,
-  preferiti, confronto, offerte e azione di esclusione motivata.
-- Esclusione reversibile con motivi/nota, registro LEARN e ripristino. Solo scelte RAM/GPU
-  esplicite cambiano la caratteristica mostrata; nessuna regola nascosta.
-- Percorso separato relè smart: caratteristiche mock, potenza neon sconosciuta e candidati
-  storici/non verificati; confronto prodotti, nessuna istruzione di cablaggio.
-- CTA **Configura** solo dopo la comparsa delle caratteristiche, senza navigazione automatica.
-- **CONFIGURE** separata con un unico slider di prezzo a **due cursori** (minimo/massimo),
-  valori CHF visibili, uso da tastiera e divieto di incrocio.
-- **DISCOVER** con filtri sempre visibili, indicatore `Sta cercando...`, un prodotto mock ogni
-  **2000 ms** sotto i filtri, stato completato e stato vuoto sensato.
-- Filtri per prezzo e caratteristiche supportate; le caratteristiche personalizzate sono
-  mostrate ma **non verificate** e non vengono usate per dichiarare un match.
-- Timer ripulito su navigazione, cambio filtri e smontaggio; nessun inserimento duplicato.
-- Offerte esatte per configurazione/condizione, confronto prodotti, preferiti in `localStorage`,
-  fonte Galaxus offline simulata, dettaglio retailer “Nessun acquisto effettuato”.
-- Layout mobile senza overflow orizzontale e navigazione completa ASK > CONFIGURE > DISCOVER >
-  LEARN > CHOOSE > COMPARE.
+- Empty ASK: no prefilled messages or characteristics.
+- First free-text message → one scripted reply asking about use, budget, and preferences.
+- Second message → exact reply `ok, I have enough information` and mock characteristics (use, resolution, GPU, RAM, condition).
+- Chat remains available after characteristics appear; later deterministic replies are labeled “scripted · no AI” and do not reset characteristics.
+- Characteristics can be removed individually or added as free text; edits persist across ASK, CONFIGURE, and DISCOVER.
+- All six stages remain visible. Unavailable stages are disabled with an explanation; on narrow screens, they use two rows.
+- Compact cards show a name and lowest confirmed price; accessible expansion shows details, favorites, comparison, offers, and exclusion with a reason.
+- Reversible exclusions with reasons/notes, a LEARN log, and restore. Only explicit RAM/GPU choices change the displayed characteristic; no hidden rules.
+- Separate smart relay flow with mock characteristics, unknown neon wattage, and historical unverified candidates. It supports product comparison and gives no wiring instructions.
+- Configure CTA appears only after characteristics are revealed; there is no automatic navigation.
+- CONFIGURE has one two-thumb price slider, visible CHF values, keyboard support, and prevents the thumbs crossing.
+- DISCOVER keeps filters visible, reveals one mock product every **2000 ms**, and has searching, completion, and useful empty states.
+- Price and supported characteristics filter results. Custom characteristics are shown but **unverified** and are not used to claim a match.
+- Timers are cleaned up on navigation, filter changes, and unmount; results are not duplicated.
+- Exact offers by configuration/condition, product comparison, favorites in `localStorage`, simulated Galaxus outage, and retailer details stating “No purchase has been made.”
+- Mobile layout without horizontal overflow across ASK > CONFIGURE > DISCOVER > LEARN > CHOOSE > COMPARE.
 
-### ASK con testo libero
+### ASK free-text input
 
-In fase ASK puoi digitare una risposta libera: **Invio** invia, **Shift+Invio** va a capo.
-Le risposte sono deterministiche e scriptate su parole chiave (budget, giochi, risoluzione/FPS,
-RAM, GPU), con un fallback esplicito per gli altri input. Sono sempre etichettate come simulate:
-nessun modello AI e nessuna richiesta di rete. Il testo libero **non modifica le caratteristiche**:
-le preferenze si gestiscono con i controlli di CONFIGURE o con il pannello caratteristiche.
+In ASK, type a free-text reply: **Enter** sends; **Shift+Enter** adds a line. Replies are deterministic and scripted around keywords (budget, games, resolution/FPS, RAM, GPU), with an explicit fallback for other input. There is no AI model or network request. Free text does **not** change characteristics; manage preferences with CONFIGURE controls or the characteristics panel.
 
-## Confini mock
+## Demo boundaries
 
-- Tutti i dati sono statici in `src/data/fixtures.ts`.
-- I nomi Amazon, Galaxus, MediaWorld, TechStore e PC Dock sono **etichette illustrative**:
-  nessuna integrazione, nessuna API, nessuna disponibilità reale.
-- Non c’è input URL/screenshot: non viene effettuato alcun fetch arbitrario.
-- Il testo libero in ASK è confrontato con parole chiave fisse, non con un modello
-  linguistico. Gli input non riconosciuti ricevono un fallback che non finge di comprenderli.
-- Il testo libero non applica modifiche alle caratteristiche: restano quelle rivelate o
-  modificate esplicitamente dall’utente.
-- Il filtro prezzo usa il **totale consegnato confermato più basso** della fixture; non è un
-  prezzo di mercato né una quotazione.
-- Le caratteristiche personalizzate non sono confrontabili con le specifiche sintetiche:
-  vengono ignorate nel match e segnalate esplicitamente.
-- Il punteggio “match” è illustrativo e separato dalla confidenza delle evidenze.
-- Le fonti offline/online sono una simulazione locale; nessuna rete viene interrogata.
-- Nessun pagamento, ordine, prenotazione o messaggio al venditore è possibile.
+- All data is static in `src/data/fixtures.ts`.
+- Amazon, Galaxus, MediaWorld, TechStore, and PC Dock are illustrative labels; there are no integrations, APIs, or real availability.
+- There is no URL/screenshot input and no arbitrary fetch.
+- ASK free text is checked against fixed keywords, not a language model. Unrecognized input receives a fallback that does not pretend to understand it.
+- Free text does not change characteristics; they remain as revealed or explicitly changed by the user.
+- The price filter uses the fixture’s **lowest confirmed delivered total**; it is not a market price or quote.
+- Custom characteristics cannot be checked against synthetic specifications; they are ignored for matching and explicitly flagged.
+- The “match” score is illustrative and separate from evidence confidence.
+- Online/offline sources are simulated locally; no network is queried.
+- No payment, order, reservation, or seller message is possible.
+- Relay claims are historical and unverified. Actual neon load is unknown; cited module capacity is not a load measurement, and no-dimmer capability remains to verify.
 
-## Avvio
+## Getting started
 
 ```bash
 npm ci
-npm run dev          # sviluppo
+npm run dev          # development
 npm run build        # type-check + build in dist/
-npm run preview      # anteprima del build
-npm test             # test unitari deterministici
-npm run test:e2e     # test Playwright (Chromium)
+npm run preview      # preview the build
+npm test             # deterministic unit tests
+npm run test:e2e     # Playwright tests (Chromium)
 ```
 
-Se Playwright non usa un browser bundled, impostare il percorso Chromium:
+If Playwright does not use a bundled browser, set its Chromium path:
 
 ```bash
 PLAYWRIGHT_CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e
 ```
 
-Il progetto usa Vite con `base: './'`: il contenuto di `dist/` può essere pubblicato su GitHub
-Pages sia alla radice sia sotto `/fairbuy-alberto-demo/`. Dopo ogni modifica, `npm run build`
-rigenera `dist/` con gli asset relativi pronti per la pubblicazione.
+The project uses Vite with `base: './'`; the contents of `dist/` can be published on GitHub Pages at the root or under `/fairbuy-alberto-demo/`. After each change, `npm run build` regenerates `dist/` with relative assets ready for publication.
 
-## Demo guidata in 3 minuti
+## Three-minute walkthrough
 
-1. **0:00–0:35 — ASK.** Apri la demo: la chat è vuota. Scrivi ad esempio “Mi serve un PC per
-   gaming competitivo e AAA” e invia. Mostra la singola risposta simulata che chiede uso, budget
-   e preferenze. Scrivi un secondo messaggio, ad esempio “Budget 2000 CHF, 1440p, GPU e RAM
-   importanti”: l’assistente risponde esattamente `ok, ho abbastanza informazioni` e compaiono
-   le caratteristiche. Continua a scrivere per mostrare che la chat resta disponibile.
-2. **0:35–1:05 — CONFIGURE.** Clicca “Configura prezzo e filtri”. Mostra i due cursori, i valori
-   CHF, l’uso da tastiera e il fatto che il minimo non può superare il massimo. Rimuovi una
-   caratteristica e aggiungine una personalizzata (“Wi-Fi 7”): resta salvata. Torna ad ASK e
-   verifica che conversazione e modifiche siano intatte.
-3. **1:05–1:45 — DISCOVER.** Avvia la ricerca: nessuna card all’inizio, indicatore
-   `Sta cercando...`. Le card compaiono una ogni 2 secondi sotto i filtri. Mostra che la ricerca
-   si ferma quando i risultati compatibili sono esauriti e che cambiare un filtro riavvia il
-   conteggio senza duplicati. Con un intervallo di prezzo impossibile compare lo stato vuoto.
-4. **1:45–2:20 — OFFERTE ESATTE.** Apri NOVA e mostra le offerte ordinate Galaxus CHF 1’899,
-   MediaWorld CHF 1’939, Amazon CHF 1’979, TechStore CHF 2’029, più il gruppo “Totale non
-   confermato”. Apri il dettaglio retailer simulato: “Nessun acquisto effettuato”.
-5. **2:20–2:45 — CONFRONTO / PREFERITI.** Torna ai prodotti, confronta due card e salva un
-   preferito. Facoltativo: simula la fonte Galaxus offline dal dettaglio prodotto.
+1. **0:00–0:35 — ASK.** Open the demo; the chat is empty. Type “I need a PC for competitive and AAA gaming” and send. The scripted reply asks about use, budget, and preferences. Send a second message, such as “Budget CHF 2,000, 1440p; GPU and RAM matter.” The assistant replies exactly `ok, I have enough information` and reveals characteristics.
+2. **0:35–1:05 — CONFIGURE.** Select “Configure price and filters.” Try both thumbs, keyboard input, and the minimum/maximum constraint. Remove a characteristic and add “Wi-Fi 7”; it remains saved. Return to ASK and verify the conversation and edits persist.
+3. **1:05–1:45 — DISCOVER.** Start discovery. No cards appear initially; one appears every two seconds below the filters. Discovery stops when compatible results are exhausted; changing a filter restarts the count without duplicates. An impossible price range displays the empty state.
+4. **1:45–2:20 — EXACT OFFERS.** Open NOVA and review offers sorted by delivered total, including the unconfirmed-total group. Open simulated retailer details: “No purchase has been made.”
+5. **2:20–2:45 — COMPARISON / FAVORITES.** Return to products, compare two cards, and save a favorite. Optionally simulate the Galaxus source going offline.
 
-## Architettura frontend-only
+## Frontend-only architecture
 
 ```text
 src/
-  data/fixtures.ts             tipi condivisi + prodotti, offerte, brief di default
-  lib/flow.ts                  caratteristiche mock, filtri prezzo/feature, match discovery
-  lib/matching.ts              feasibility, tier, score, offerte e compatibilità legacy
-  lib/mockReplies.ts           risposte simulate a parole chiave + fallback
-  lib/sellers.ts               totali, gruppi offerte, range, ordinamento, formattazione CHF
-  components/ChatPanel.tsx     chat vuota, composer, Invio/Shift+Invio, CTA Configura
-  components/CharacteristicsPanel.tsx  lista rimovibile + aggiunta testo libero
-  components/PriceRangeSlider.tsx      slider a due cursori accessibile
-  components/StageProgress.tsx navigazione ASK > CONFIGURE > DISCOVER con lock
-  components/ProductCard.tsx   card prodotto (dismiss opzionale, non usato nel flusso)
-  components/SellerOffers.tsx  offerte esatte e dettaglio retailer simulato
-  App.tsx                      stato locale, timer 2 s, filtri, confronto, preferiti, reset
-  styles.css                   design system navy/teal, slider, stati ricerca, responsive
-e2e/ask-free-text.spec.ts      chat vuota, due messaggi, persistenza caratteristiche, mobile
-e2e/smoke.spec.ts              lock navigazione, slider, timing 2 s/4 s, filtri, stati, offerte
+  data/fixtures.ts             shared types, products, offers, default brief
+  data/relay.ts                historical relay candidates and caveats
+  lib/flow.ts                  mock characteristics, price/feature filters, discovery matching
+  lib/matching.ts              feasibility, tier, score, offers, legacy compatibility
+  lib/mockReplies.ts           scripted keyword replies and fallback
+  lib/sellers.ts               totals, offer groups, ranges, sorting, CHF formatting
+  components/ChatPanel.tsx     empty chat, composer, Enter/Shift+Enter, Configure CTA
+  components/CharacteristicsPanel.tsx  removable list and free-text input
+  components/PriceRangeSlider.tsx      accessible two-thumb slider
+  components/StageProgress.tsx         stage navigation and locks
+  components/ProductCard.tsx           compact/expanded product card
+  components/SellerOffers.tsx          exact offers and simulated retailer details
+  components/RelayFlow.tsx             separate relay demo
+  App.tsx                              local state, timers, filters, comparison, favorites
+  styles.css                           visual system and responsive layout
+e2e/ask-free-text.spec.ts               chat, relay routing, persistence, mobile
+e2e/smoke.spec.ts                       stages, slider, timing, filters, offers
 ```
 
-Stato e persistenza sono locali al browser. Le uniche scritture sono i preferiti in
-`localStorage` (chiave `fairbuy-demo-favorites-v1`), cancellati dal reset demo.
+State and persistence are local to the browser. The only persisted data is favorites in `localStorage` (key `fairbuy-demo-favorites-v1`), cleared when the demo resets.
 
-## Riferimenti Wiki
+## Wiki references
 
-Wiki pubblico al commit
-[`7c7498f99d5c04708dcd70d7a9ce8e2bc254e026`](https://github.com/meta-hackers/fairbuy/wiki/7c7498f99d5c04708dcd70d7a9ce8e2bc254e026):
+Public Wiki at commit [`7c7498f99d5c04708dcd70d7a9ce8e2bc254e026`](https://github.com/meta-hackers/fairbuy/wiki/7c7498f99d5c04708dcd70d7a9ce8e2bc254e026):
 
 - [Guided Shopping UX](https://github.com/meta-hackers/fairbuy/wiki/Guided-Shopping-UX)
-- [Gaming PC Demo: slides e walkthrough](https://github.com/meta-hackers/fairbuy/wiki/Gaming-PC-Demo)
+- [Gaming PC Demo: slides and walkthrough](https://github.com/meta-hackers/fairbuy/wiki/Gaming-PC-Demo)
 - [Product Selection Logic](https://github.com/meta-hackers/fairbuy/wiki/Selection-Logic)
 - [Pain Points and Opportunities](https://github.com/meta-hackers/fairbuy/wiki/Pain-Points-and-Opportunities)
 - [Architecture](https://github.com/meta-hackers/fairbuy/wiki/Architecture)
 - [Audio](https://github.com/meta-hackers/fairbuy/wiki/Audio)
 
-Architettura, connettori, servizi di ricerca e audio della Wiki sono **futuri**: non sono
-implementati in questa demo. La UI adotta la direzione visiva navy/teal, logo compatto, stage
-progress, pannello conversazionale, filtri in alto e griglia card.
+Architecture, connectors, search services, and audio described in the Wiki are future ideas, not implemented in this demo. The UI follows the navy/teal visual direction, compact logo, stage progress, conversational panel, top filters, and card grid.
 
-## Copertura acceptance
+## Acceptance coverage
 
-| Criterio | Stato nella demo | Note |
+| Criterion | Status | Notes |
 |---|---|---|
-| ASK vuota, zero messaggi precompilati | Coperto | `messages` parte da `[]`; hint non è un messaggio |
-| Primo messaggio → una sola risposta simulata | Coperto | Chiede uso, budget e preferenze |
-| Secondo messaggio → `ok, ho abbastanza informazioni` | Coperto | Testo esatto nel paragrafo del messaggio |
-| Caratteristiche mock dopo due messaggi | Coperto | 5 caratteristiche supportate |
-| Chat scrivibile dopo la rivelazione | Coperto | Risposte keyword, nessun reset delle caratteristiche |
-| Caratteristiche rimovibili e aggiungibili | Coperto | Testo libero con badge “non verificabile” |
-| Persistenza tra ASK/CONFIGURE/DISCOVER | Coperto | Stato unico in `App.tsx` |
-| CTA Configura solo dopo la rivelazione | Coperto | Nessuna navigazione automatica |
-| CONFIGURE separata | Coperto | Stage dedicato, chat non mostrata |
-| Slider a due cursori, valori visibili, no crossing | Coperto | Due input range sovrapposti, clamp min/max |
-| Accessibilità da tastiera | Coperto | Frecce, Home/End, focus visibile |
-| DISCOVER con filtri sempre visibili | Coperto | Pannello filtri sopra i risultati |
-| Un prodotto ogni 2000 ms | Coperto | Timer ripulito e riavviato |
-| Filtri prezzo + feature supportate | Coperto | Match deterministico sulle fixture |
-| Custom non dichiarato compatibile | Coperto | Nota esplicita, ignorato nel match |
-| Stato `Sta cercando...` e completato | Coperto | Indicatore e messaggio finale |
-| Stato vuoto sensato | Coperto | Con azione “Allarga il budget” |
-| Cleanup timer e no duplicati | Coperto | Test con clock finto |
-| Ritorno a ASK/DISCOVER coerente | Coperto | Conversazione, caratteristiche e filtri conservati |
-| Offerte esatte e confronto | Coperto | Funzionalità legacy compatibile |
-| Mobile e accessibilità di base | Coperto | Nessun overflow a 390 px, label e focus |
-| AI/STT/TTS, connettori, scraping | **Non implementato** | Fuori scope demo frontend-only |
-| Prezzi, stock o copertura di mercato reali | **Non disponibile** | Solo fixture sintetiche in CHF |
+| Empty ASK, no prefilled messages | Covered | `messages` starts as `[]`; the hint is not a message |
+| First message → one scripted reply | Covered | Asks about use, budget, and preferences |
+| Second message → `ok, I have enough information` | Covered | Exact message text |
+| Mock characteristics after two messages | Covered | Five supported characteristics |
+| Chat remains writable after reveal | Covered | Keyword replies do not reset characteristics |
+| Characteristics removable/addable | Covered | Free text marked unverified |
+| Persistence across ASK/CONFIGURE/DISCOVER | Covered | Shared state in `App.tsx` |
+| Configure CTA only after reveal | Covered | No automatic navigation |
+| Separate CONFIGURE stage | Covered | Chat is hidden |
+| Two-thumb slider, visible values, no crossing | Covered | Overlaid range inputs with min/max clamp |
+| Keyboard accessibility | Covered | Arrow keys, Home/End, visible focus |
+| DISCOVER filters remain visible | Covered | Filters above results |
+| One result every 2000 ms | Covered | Timer cleaned up and restarted |
+| Price and supported-feature filters | Covered | Deterministic fixture matching |
+| Custom characteristics not claimed compatible | Covered | Explicit note; ignored for matching |
+| Searching and completion states | Covered | Status and final message |
+| Useful empty state | Covered | Includes a widen-budget action |
+| Timer cleanup and no duplicate results | Covered | Fake-clock test |
+| Consistent return to ASK/DISCOVER | Covered | Conversation, characteristics, and filters persist |
+| Exact offers and comparison | Covered | Legacy functionality retained |
+| Mobile and basic accessibility | Covered | No overflow at 390 px; labels and focus |
+| AI/STT/TTS, connectors, scraping | Not implemented | Outside frontend-only demo scope |
+| Real prices, stock, or market coverage | Not available | Synthetic CHF fixtures only |
 
-## Test e verifica
-
-Comandi eseguiti durante lo sviluppo:
+## Tests and verification
 
 ```bash
-npm ci
 npm run build
 npm test
-npm run test:e2e
+PLAYWRIGHT_CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e
 ```
 
-Risultati attesi: build TypeScript/Vite pulita, **35 test unitari**, **13 test Playwright**.
-Screenshot e report sono in `artifacts/` (`screenshots/` è ignorata da Git); il dettaglio
-dell’ultima verifica è in `artifacts/flow-update-report.md`.
+See `artifacts/english-report.md` for the translation summary. Screenshots and other reports are in `artifacts/`; screenshots are ignored by Git.
 
-## Limiti e prossimi passi
+## Limitations
 
-- Le fixture non provano prezzi, stock, garanzie o affidabilità reali.
-- Il “match” non è una probabilità né una certificazione; le regole sono dimostrative.
-- Il filtro prezzo usa il totale consegnato confermato più basso, non un prezzo live.
-- La ricerca è deterministica e limitata al pool; non c’è retrieval reale.
-- Il testo libero in ASK non è NLU: riconosce solo parole chiave italiane e non estrae
-  importi, modelli o requisiti. Le risposte non aggiornano le caratteristiche.
-- Le caratteristiche personalizzate non sono verificate sui prodotti.
-- Il pulsante retailer non apre un URL reale e non effettua acquisti.
-- Un’integrazione live richiederebbe accesso autorizzato alle fonti, evidenze, timestamp,
-  gestione errori e un backend: tutto esplicitamente fuori da questa demo.
-- Nessun commit, push o pubblicazione è stato eseguito dall’agente.
+- Fixtures do not establish real prices, stock, warranties, or reliability.
+- “Match” is not a probability or certification; the rules are illustrative.
+- Discovery is deterministic and limited to the local pool; there is no live retrieval.
+- ASK free text is not NLU and does not extract requirements; replies do not update characteristics.
+- Custom characteristics are not verified against products.
+- Retailer actions do not open real URLs or make purchases.
+- A live integration would require authorized source access, evidence, timestamps, error handling, and a backend, all outside this demo.
+- No commits, pushes, or publication were made by the agent.
