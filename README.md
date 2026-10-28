@@ -7,7 +7,12 @@ link retailer reali o contatti con venditori.
 
 L’interfaccia parte da una chat **genuinamente vuota** e accompagna l’utente attraverso:
 
-**ASK → CONFIGURE → DISCOVER** (con offerte esatte e confronto opzionali)
+**ASK → CONFIGURE → DISCOVER → LEARN → CHOOSE → COMPARE**
+
+La categoria PC resta il fallback. Un primo messaggio che nomina un interruttore/switch
+smart instrada invece a una demo distinta di relè per neon. Solo il primo messaggio (o una
+risposta alla domanda di disambiguazione) sceglie categoria; i messaggi successivi non la
+cambiano.
 
 ## Cosa è possibile provare
 
@@ -19,6 +24,14 @@ L’interfaccia parte da una chat **genuinamente vuota** e accompagna l’utente
   sono deterministiche, etichettate “simulata · nessuna AI” e non azzerano le caratteristiche.
 - Caratteristiche **rimovibili singolarmente** e **aggiungibili come testo libero**; le modifiche
   restano attive passando tra ASK, CONFIGURE e DISCOVER.
+- La barra mantiene tutti i sei stage: quelli non ancora raggiungibili sono disabilitati con
+  spiegazione; su schermi stretti sono disposti in due righe.
+- Card sottili con nome e minimo prezzo confermato; espansione accessibile mostra dettagli,
+  preferiti, confronto, offerte e azione di esclusione motivata.
+- Esclusione reversibile con motivi/nota, registro LEARN e ripristino. Solo scelte RAM/GPU
+  esplicite cambiano la caratteristica mostrata; nessuna regola nascosta.
+- Percorso separato relè smart: caratteristiche mock, potenza neon sconosciuta e candidati
+  storici/non verificati; confronto prodotti, nessuna istruzione di cablaggio.
 - CTA **Configura** solo dopo la comparsa delle caratteristiche, senza navigazione automatica.
 - **CONFIGURE** separata con un unico slider di prezzo a **due cursori** (minimo/massimo),
   valori CHF visibili, uso da tastiera e divieto di incrocio.
@@ -29,7 +42,8 @@ L’interfaccia parte da una chat **genuinamente vuota** e accompagna l’utente
 - Timer ripulito su navigazione, cambio filtri e smontaggio; nessun inserimento duplicato.
 - Offerte esatte per configurazione/condizione, confronto prodotti, preferiti in `localStorage`,
   fonte Galaxus offline simulata, dettaglio retailer “Nessun acquisto effettuato”.
-- Layout mobile senza overflow orizzontale e navigazione ASK > CONFIGURE > DISCOVER raggiungibile.
+- Layout mobile senza overflow orizzontale e navigazione completa ASK > CONFIGURE > DISCOVER >
+  LEARN > CHOOSE > COMPARE.
 
 ### ASK con testo libero
 

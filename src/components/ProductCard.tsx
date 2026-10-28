@@ -1,5 +1,6 @@
 import type { MatchResult, Offer, Product } from '../data/fixtures'
 import { formatCHF, priceRange } from '../lib/sellers'
+import { productPrice } from '../lib/flow'
 import ProductIllustration from './ProductIllustration'
 
 const tierLabels: Record<MatchResult['tier'], string> = {
@@ -19,14 +20,22 @@ interface Props {
   onDismiss?: () => void
   onFavorite: () => void
   onCompare: () => void
+  expanded: boolean
+  onToggle: () => void
 }
 
-export default function ProductCard({ product, match, offers, favorite, compared, onOpen, onDismiss, onFavorite, onCompare }: Props) {
+export default function ProductCard({ product, match, offers, favorite, compared, onOpen, onDismiss, onFavorite, onCompare, expanded, onToggle }: Props) {
   const range = priceRange(offers)
   const retailers = [...new Set(offers.map((offer) => offer.retailer))]
   const c = product.config
   return (
     <article className={`product-card product-card--${match.tier}`} data-testid={`product-card-${product.id}`} data-tier={match.tier}>
+      <button type="button" className="product-summary" data-testid={`expand-${product.id}`} aria-expanded={expanded} aria-controls={`details-${product.id}`} onClick={onToggle}>
+        <span>{product.name}</span>
+        <strong title="Minimo totale consegnato confermato · fixture sintetica">{productPrice(product, offers) === null ? 'Prezzo non confermato' : formatCHF(productPrice(product, offers)!)}</strong>
+        <span aria-hidden="true">{expanded ? '−' : '+'}</span>
+      </button>
+      <div id={`details-${product.id}`} className="product-details" hidden={!expanded}>
       <div className="product-card__top">
         <button className="icon-button" type="button" onClick={onFavorite} aria-pressed={favorite} aria-label={favorite ? `Rimuovi ${product.name} dai preferiti` : `Salva ${product.name} nei preferiti`} data-testid={`favorite-${product.id}`}>
           {favorite ? '♥' : '♡'}
@@ -34,7 +43,7 @@ export default function ProductCard({ product, match, offers, favorite, compared
         <span className={`tier-badge tier-badge--${match.tier}`} data-testid={`tier-${product.id}`}>
           <span aria-hidden="true">●</span> {tierLabels[match.tier]}
         </span>
-        {onDismiss ? <button className="icon-button icon-button--dismiss" type="button" onClick={onDismiss} aria-label={`Rimuovi ${product.name} e spiega perché`} data-testid={`dismiss-${product.id}`}>×</button> : null}
+        {onDismiss ? <button className="button button--small icon-button--dismiss" type="button" onClick={onDismiss} aria-label={`Escludi ${product.name} con motivo`} data-testid={`dismiss-${product.id}`}>Escludi con motivo</button> : null}
       </div>
       <div className="product-card__main">
         <div className="product-card__art"><ProductIllustration variant={product.illustration} /></div>
@@ -71,6 +80,7 @@ export default function ProductCard({ product, match, offers, favorite, compared
           <input type="checkbox" checked={compared} onChange={onCompare} /> Confronta
         </label>
         <button type="button" className="button button--small" onClick={onOpen}>Vedi offerte esatte →</button>
+      </div>
       </div>
     </article>
   )

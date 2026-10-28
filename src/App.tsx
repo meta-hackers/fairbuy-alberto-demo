@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { offers as allOffers, products, type Product } from './data/fixtures'
-import { computeMatch } from './lib/matching'
+import { offers as allOffers, products, type Product, type DismissReason } from './data/fixtures'
+import { computeMatch, type Clarification } from './lib/matching'
+import { clarifyFeatures, undoFeatureChanges, type Feedback } from './lib/feedback'
+import { routeCategory } from './lib/category'
+import FeedbackLog from './components/FeedbackLog'
+import DismissModal from './components/DismissModal'
+import RelayFlow from './components/RelayFlow'
 import { mockReply } from './lib/mockReplies'
 import { formatCHF, offersForProduct } from './lib/sellers'
 import {
@@ -53,6 +58,8 @@ function SourcePanel({ sourceOffline, offlineOfferCount, onToggle }: { sourceOff
 }
 
 export default function App() {
+  const [relaySeed, setRelaySeed] = useState<string[] | null>(null)
+  const [ambiguous, setAmbiguous] = useState(false)
   const [stage, setStage] = useState<Stage>('ask')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [characteristics, setCharacteristics] = useState<Characteristic[]>([])
@@ -69,9 +76,15 @@ export default function App() {
   const [sourceOffline, setSourceOffline] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
   const [toast, setToast] = useState<{ message: string } | null>(null)
+  const [feedback, setFeedback] = useState<Feedback[]>([])
+  const [dismissId, setDismissId] = useState<string | null>(null)
+  const [expandedIds, setExpandedIds] = useState<string[]>([])
 
   const brief = useMemo(() => deriveBrief(characteristics, priceRange), [characteristics, priceRange])
-  const matches = useMemo(() => findDiscoveryMatches(products, allOffers, characteristics, priceRange), [characteristics, priceRange])
+  const matches = useMemo(() => {
+    const result = findDiscoveryMatches(products, allOffers, characteristics, priceRange)
+    return { ...result, matches: result.matches.filter((product) => !feedback.some((entry) => entry.active && entry.productId === product.id)) }
+  }, [characteristics, priceRange, feedback])
   const currentSignature = useMemo(() => filterSignature(characteristics, priceRange), [characteristics, priceRange])
   const visibleOffers = useMemo(() => sourceOffline ? allOffers.filter((offer) => offer.retailer !== 'Galaxus') : allOffers, [sourceOffline])
   const productById = useMemo(() => Object.fromEntries(products.map((product) => [product.id, product])), [])
@@ -83,17 +96,17 @@ export default function App() {
 
   useEffect(() => {
     if (stage !== 'discover' || searchStatus !== 'searching') return
-    if (revealIndex >= matches.matches.length) {
+    const product = matches.matches.find((candidate) => !discoveredIds.includes(candidate.id))
+    if (!product) {
       setSearchStatus('complete')
       return
     }
-    const product = matches.matches[revealIndex]
     const timer = window.setTimeout(() => {
       setDiscoveredIds((current) => current.includes(product.id) ? current : [...current, product.id])
       setRevealIndex((current) => current + 1)
     }, 2000)
     return () => window.clearTimeout(timer)
-  }, [stage, searchStatus, revealIndex, matches])
+  }, [stage, searchStatus, revealIndex, matches, discoveredIds])
 
   const addMessage = (role: ChatMessage['role'], text: string, simulated = false) => {
     setMessages((current) => [...current, { id: messageId(role), role, text, simulated }])
@@ -104,10 +117,20 @@ export default function App() {
     const userMessage: ChatMessage = { id: messageId('user'), role: 'user', text }
 
     if (userCount === 0) {
+      const category = routeCategory(text)
+      if (category === 'relay') { setRelaySeed([text]); return }
+      if (category === 'ambiguous') {
+        setAmbiguous(true)
+        setMessages([userMessage, { id: messageId('assistant'), role: 'assistant', text: 'Quale categoria intendi: PC/computer oppure interruttore relè smart per neon (non Nintendo né rete)?', simulated: true }])
+        return
+      }
       setMessages((current) => [...current, userMessage, { id: messageId('assistant'), role: 'assistant', text: FIRST_FOLLOW_UP, simulated: true }])
       return
     }
     if (userCount === 1) {
+      if (ambiguous && routeCategory(text) === 'relay') {
+        setRelaySeed([messages.find((message) => message.role === 'user')!.text, text]); return
+      }
       setMessages((current) => [...current, userMessage, { id: messageId('assistant'), role: 'assistant', text: REVEAL_REPLY, simulated: true }])
       setCharacteristics(DEFAULT_CHARACTERISTICS)
       setRevealed(true)
@@ -122,15 +145,14 @@ export default function App() {
     setStage('discover')
     setDiscoveredIds([])
     setRevealIndex(0)
-    setSearchStatus(result.matches.length > 0 ? 'searching' : 'complete')
+    setSearchStatus(result.matches.some((product) => !feedback.some((entry) => entry.active && entry.productId === product.id)) ? 'searching' : 'complete')
     setSearchSignature(filterSignature(nextCharacteristics, nextRange))
-    setSelectedId(null)
     setMobileNav(false)
   }
 
   const navigate = (next: Stage) => {
     setMobileNav(false)
-    if ((next === 'configure' || next === 'discover') && !revealed) {
+    if (next !== 'ask' && !revealed) {
       setToast({ message: 'Completa prima i due messaggi in ASK: le caratteristiche non sono ancora disponibili.' })
       return
     }
@@ -138,6 +160,7 @@ export default function App() {
       if (selectedId) setStage('product')
       return
     }
+    if (next === 'compare') { if (compareIds.length >= 2) setCompareOpen(true); return }
     if (next === 'discover') {
       if (searchStatus === 'idle' || searchSignature !== currentSignature) { startDiscovery(); return }
       setStage('discover')
@@ -193,6 +216,11 @@ export default function App() {
   }
 
   const resetDemo = () => {
+    setRelaySeed(null)
+    setAmbiguous(false)
+    setFeedback([])
+    setDismissId(null)
+    setExpandedIds([])
     localStorage.removeItem(FAVORITES_KEY)
     setStage('ask')
     setMessages([])
@@ -216,7 +244,7 @@ export default function App() {
   const activeOffers = activeProduct ? offersForProduct(visibleOffers, activeProduct.id) : []
   const activeMatch = activeProduct ? computeMatch(activeProduct, brief, activeOffers) : null
   const selectedProducts = compareIds.map((id) => productById[id]).filter((product): product is Product => Boolean(product))
-  const discoveredProducts = discoveredIds.map((id) => productById[id]).filter((product): product is Product => Boolean(product))
+  const discoveredProducts = discoveredIds.map((id) => productById[id]).filter((product): product is Product => Boolean(product) && matches.matches.some((candidate) => candidate.id === product.id))
   const offlineOfferCount = allOffers.filter((offer) => offer.retailer === 'Galaxus' && discoveredIds.includes(offer.productId)).length
 
   const renderCard = (product: Product) => {
@@ -231,10 +259,40 @@ export default function App() {
         favorite={favorites.includes(product.id)}
         compared={compareIds.includes(product.id)}
         onOpen={() => openProduct(product.id)}
+        expanded={expandedIds.includes(product.id)}
+        onToggle={() => setExpandedIds((current) => current.includes(product.id) ? current.filter((id) => id !== product.id) : [...current, product.id])}
+        onDismiss={() => setDismissId(product.id)}
         onFavorite={() => toggleFavorite(product.id)}
         onCompare={() => toggleCompare(product.id)}
       />
     )
+  }
+
+  const applyFeedback = (reasons: DismissReason[], clarification: Clarification, note: string) => {
+    if (!dismissId) return
+    const product = productById[dismissId]
+    const { next, changes } = clarifyFeatures(characteristics, reasons, clarification)
+    const entry: Feedback = {
+      id: messageId('feedback'), productId: product.id, productName: product.name, reasons, note, active: true, changes,
+      clarification: changes.length ? `Scelta esplicita: ${changes.map((change) => change.after.label).join('; ')}.` : 'Caratteristiche e prezzo invariati. Nessun vincolo automatico.',
+    }
+    setFeedback((current) => [...current, entry])
+    setCharacteristics(next)
+    setCompareIds((current) => current.filter((id) => id !== product.id))
+    setDismissId(null)
+    setToast({ message: `${product.name} escluso. Motivo salvato in LEARN; puoi ripristinarlo.` })
+    if (changes.length) startDiscovery(next)
+  }
+
+  const undoFeedback = (id: string) => {
+    const entry = feedback.find((item) => item.id === id)
+    if (!entry) return
+    const next = undoFeatureChanges(characteristics, entry.changes)
+    setCharacteristics(next)
+    setFeedback((current) => current.map((item) => item.id === id ? { ...item, active: false } : item))
+    setDiscoveredIds((current) => current.filter((productId) => productId !== entry.productId))
+    setSearchStatus('searching')
+    setToast({ message: 'Esclusione annullata. Le modifiche successive sono conservate; il prodotto rientra solo se compatibile con i filtri.' })
   }
 
   const title = stage === 'ask'
@@ -244,6 +302,8 @@ export default function App() {
       : stage === 'product' && activeProduct
         ? activeProduct.name
         : 'Prodotti trovati'
+
+  if (relaySeed) return <RelayFlow initialMessages={relaySeed} onRestart={resetDemo} />
 
   return (
     <div className="app-shell">
@@ -270,8 +330,10 @@ export default function App() {
           <div><p className="eyebrow">FairBuy workspace · Zurigo</p><h1>{title}</h1></div>
           <span className="demo-badge demo-badge--top">DEMO / dati simulati</span>
         </header>
-        <StageProgress stage={stage} canConfigure={revealed} onNavigate={navigate} />
+        <StageProgress stage={compareOpen ? 'compare' : stage} canConfigure={revealed} canChoose={Boolean(selectedId)} canCompare={compareIds.length >= 2} onNavigate={navigate} />
         <main className="app-content">
+          {revealed && (stage === 'learn' || feedback.length > 0) ? <FeedbackLog entries={feedback} onUndo={undoFeedback} /> : null}
+          {stage === 'learn' ? <button type="button" className="button" onClick={() => navigate('discover')}>Torna a DISCOVER</button> : null}
           {stage === 'ask' ? (
             <div className="ask-layout">
               <ChatPanel
@@ -445,6 +507,7 @@ export default function App() {
       </div>
       <CompareTray products={selectedProducts} onOpen={() => setCompareOpen(true)} onRemove={toggleCompare} onClear={() => setCompareIds([])} />
       {compareOpen ? <CompareModal products={selectedProducts} matches={matchById} onClose={() => setCompareOpen(false)} /> : null}
+      {dismissId ? <DismissModal key={dismissId} product={productById[dismissId]} brief={brief} onClose={() => { setDismissId(null); window.setTimeout(() => document.querySelector<HTMLButtonElement>(`[data-testid="dismiss-${dismissId}"]`)?.focus(), 0) }} onApply={applyFeedback} /> : null}
       {toast ? <div className="toast" role="status"><span>{toast.message}</span><button type="button" className="toast__close" onClick={() => setToast(null)} aria-label="Chiudi notifica">×</button></div> : null}
     </div>
   )

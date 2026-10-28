@@ -8,13 +8,18 @@ import {
 import { gpuValue } from './matching'
 import { totalOf } from './sellers'
 
-export type CharacteristicKind = 'use' | 'resolution' | 'gpu' | 'ram' | 'condition' | 'custom'
+export type CharacteristicKind = 'use' | 'resolution' | 'gpu' | 'ram' | 'condition' | 'avoidGpu' | 'value' | 'custom'
+
+export type CharacteristicMode = 'required' | 'preferred'
 
 export interface Characteristic {
   id: string
   label: string
   kind: CharacteristicKind
   value?: string | number
+  /** GPU/RAM requirements can be required or preferred. The label mirrors this state. */
+  mode?: CharacteristicMode
+  preferenceOnly?: boolean
   /** Preset characteristics can be verified against fixture specs. Custom text cannot. */
   supported: boolean
 }
@@ -33,11 +38,29 @@ export interface DiscoveryResult {
 export const PRODUCT_PRICE_BOUNDS: PriceBounds = { min: 1000, max: 3000 }
 export const DEFAULT_PRICE_RANGE: PriceBounds = { min: 1000, max: 3000 }
 
+export function gpuCharacteristicLabel(value: number, mode: CharacteristicMode = 'preferred'): string {
+  return `GPU: RTX ${value} o superiore${mode === 'required' ? ' · obbligatoria' : ''}`
+}
+
+export function ramCharacteristicLabel(value: number, mode: CharacteristicMode = 'preferred'): string {
+  return `RAM: ${value} GB${mode === 'required' ? ' · obbligatoria' : ''}`
+}
+
+export function setCharacteristicMode(characteristic: Characteristic, mode: CharacteristicMode): Characteristic {
+  if (characteristic.kind === 'gpu') {
+    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: `${gpuCharacteristicLabel(Number(characteristic.value), mode)}${mode === 'preferred' ? ' · solo preferenza' : ''}` }
+  }
+  if (characteristic.kind === 'ram') {
+    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: `${ramCharacteristicLabel(Number(characteristic.value), mode)}${mode === 'preferred' ? ' · solo preferenza' : ''}` }
+  }
+  return characteristic
+}
+
 export const DEFAULT_CHARACTERISTICS: Characteristic[] = [
   { id: 'use', label: 'Uso: gaming competitivo e AAA', kind: 'use', supported: true },
   { id: 'resolution', label: 'Risoluzione: 1440p · 120 fps', kind: 'resolution', value: '1440p', supported: true },
-  { id: 'gpu', label: 'GPU: RTX 4070 o superiore', kind: 'gpu', value: 4070, supported: true },
-  { id: 'ram', label: 'RAM: 32 GB', kind: 'ram', value: 32, supported: true },
+  { id: 'gpu', label: gpuCharacteristicLabel(4070), kind: 'gpu', value: 4070, mode: 'preferred', supported: true },
+  { id: 'ram', label: ramCharacteristicLabel(32), kind: 'ram', value: 32, mode: 'preferred', supported: true },
   { id: 'condition', label: 'Condizione: solo nuovo', kind: 'condition', supported: true },
 ]
 
@@ -68,6 +91,7 @@ export function productPrice(product: Product, offers: Offer[]): number | null {
 
 export function matchesCharacteristic(product: Product, characteristic: Characteristic): boolean {
   if (!characteristic.supported) return true
+  if (characteristic.preferenceOnly) return true
   if (characteristic.kind === 'resolution') {
     return RESOLUTION_RANK[product.maxResolution] >= RESOLUTION_RANK[characteristic.value as Resolution]
   }
@@ -100,7 +124,7 @@ export function findDiscoveryMatches(
 
 export function filterSignature(characteristics: Characteristic[], range: PriceBounds): string {
   const features = characteristics
-    .map((characteristic) => `${characteristic.id}:${characteristic.kind}:${String(characteristic.value ?? '')}`)
+    .map((characteristic) => `${characteristic.id}:${characteristic.kind}:${String(characteristic.value ?? '')}:${characteristic.mode ?? ''}:${characteristic.preferenceOnly ?? false}`)
     .sort()
     .join(',')
   return `${range.min}|${range.max}|${features}`
@@ -125,12 +149,12 @@ export function deriveBrief(characteristics: Characteristic[], range: PriceBound
 
   const gpu = characteristics.find((characteristic) => characteristic.kind === 'gpu')
   next.gpu = gpu
-    ? { mode: 'preferred', value: Number(gpu.value) }
+    ? { mode: gpu.mode ?? 'preferred', value: Number(gpu.value) }
     : { mode: 'preferred', value: 4060 }
 
   const ram = characteristics.find((characteristic) => characteristic.kind === 'ram')
   next.ram = ram
-    ? { mode: 'preferred', value: Number(ram.value) }
+    ? { mode: ram.mode ?? 'preferred', value: Number(ram.value) }
     : { mode: 'preferred', value: 16 }
 
   next.newOnly = characteristics.some((characteristic) => characteristic.kind === 'condition')

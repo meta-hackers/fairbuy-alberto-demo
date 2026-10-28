@@ -13,9 +13,10 @@ interface Props {
   characteristicCount: number
   onSend: (text: string) => void
   onConfigure: () => void
+  placeholder?: string
 }
 
-export default function ChatPanel({ messages, revealed, characteristicCount, onSend, onConfigure }: Props) {
+export default function ChatPanel({ messages, revealed, characteristicCount, onSend, onConfigure, placeholder = 'Es. gioco soprattutto FPS a 1440p, budget massimo 1800 CHF' }: Props) {
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const logRef = useRef<HTMLDivElement>(null)
@@ -88,7 +89,7 @@ export default function ChatPanel({ messages, revealed, characteristicCount, onS
             rows={2}
             maxLength={500}
             value={draft}
-            placeholder="Es. gioco soprattutto FPS a 1440p, budget massimo 1800 CHF"
+            placeholder={placeholder}
             aria-describedby="ask-composer-hint"
             autoComplete="off"
             onChange={(event) => setDraft(event.target.value)}

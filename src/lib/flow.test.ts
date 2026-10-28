@@ -50,6 +50,11 @@ describe('flow characteristics', () => {
     expect(matchesCharacteristic(product('nova'), custom)).toBe(true)
   })
 
+  it('treats an explicitly preferred RAM feature as visible soft preference, not a match filter', () => {
+    const ram = { ...DEFAULT_CHARACTERISTICS.find((item) => item.kind === 'ram')!, preferenceOnly: true }
+    expect(matchesCharacteristic(product('orbit'), ram)).toBe(true)
+  })
+
   it('returns an empty match set for an impossible price window', () => {
     const result = findDiscoveryMatches(products, offers, DEFAULT_CHARACTERISTICS, { min: 2900, max: 3000 })
     expect(result.matches).toHaveLength(0)
