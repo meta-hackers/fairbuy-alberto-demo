@@ -3,6 +3,7 @@ export type Tier = 'strong' | 'preference' | 'conflict' | 'unknown'
 export type RequirementMode = 'required' | 'preferred'
 export type Retailer = 'Amazon' | 'Galaxus' | 'MediaWorld' | 'TechStore' | 'PC Dock'
 export type Stock = 'Disponibile' | 'Esaurito' | 'Da confermare'
+export type Resolution = '1080p' | '1440p' | '4K'
 export type Illustration = 'forge' | 'pulse' | 'elite' | 'strix' | 'flux' | 'vega' | 'air' | 'orbit' | 'titan' | 'aura'
 
 export interface Config {
@@ -36,6 +37,7 @@ export interface Product {
   config: Config
   tagline: string
   features: string[]
+  maxResolution: Resolution
   illustration: Illustration
   pool: 'primary' | 'alternative'
 }
@@ -131,60 +133,70 @@ const o = (
 export const products: Product[] = [
   {
     id: 'nova', name: 'NOVA Forge 4070 SUPER', pool: 'primary', illustration: 'forge',
+    maxResolution: '1440p',
     config: { cpu: 'Intel Core i7-13700F', gpu: 'RTX 4070 SUPER', ramGB: 32, storageGB: 1000, condition: 'Nuovo' },
     tagline: 'Equilibrio alto: 1440p competitivo e AAA senza compromessi.',
     features: ['32 GB DDR5', 'SSD 1 TB', 'Ray tracing', 'Ventole a bassa rumorosità'],
   },
   {
     id: 'orbit', name: 'ORBIT Pulse 4060 Ti', pool: 'primary', illustration: 'pulse',
+    maxResolution: '1440p',
     config: { cpu: 'AMD Ryzen 5 7600', gpu: 'RTX 4060 Ti', ramGB: 16, storageGB: 1000, condition: 'Nuovo' },
     tagline: 'Prezzo aggressivo, ma 16 GB e 4060 Ti sono un compromesso.',
     features: ['16 GB DDR5', 'SSD 1 TB', '1440p equilibrato', 'Formato compatto'],
   },
   {
     id: 'vortex', name: 'VORTEX Elite 4080 SUPER', pool: 'primary', illustration: 'elite',
+    maxResolution: '4K',
     config: { cpu: 'AMD Ryzen 9 7900X', gpu: 'RTX 4080 SUPER', ramGB: 32, storageGB: 1000, condition: 'Nuovo' },
     tagline: 'Prestazioni elevate; un’offerta sfiora il tetto di budget.',
     features: ['32 GB DDR5', 'SSD 1 TB', '4K ready', 'Raffreddamento a liquido'],
   },
   {
     id: 'strix', name: 'STRIX Core 4060 Ti', pool: 'primary', illustration: 'strix',
+    maxResolution: '1440p',
     config: { cpu: 'Intel Core i5-13400F', gpu: 'RTX 4060 Ti', ramGB: 16, storageGB: 1000, condition: 'Nuovo' },
     tagline: 'Buon entry 1440p, con RAM e GPU sotto le preferenze.',
     features: ['16 GB DDR4', 'SSD 1 TB', 'Compatto', 'Prezzo contenuto'],
   },
   {
     id: 'vega', name: 'VEGA Mini 4070', pool: 'alternative', illustration: 'vega',
+    maxResolution: '1440p',
     config: { cpu: 'AMD Ryzen 7 7700', gpu: 'RTX 4070', ramGB: 32, storageGB: 1000, condition: 'Nuovo' },
     tagline: 'Alternativa compatta con 32 GB e GPU 4070.',
     features: ['32 GB DDR5', 'SSD 1 TB', 'Mini-ITX', 'Basso consumo'],
   },
   {
     id: 'aero', name: 'AERO Flux 4070 Ti', pool: 'alternative', illustration: 'flux',
+    maxResolution: '1440p',
     config: { cpu: 'Intel Core i5-14600KF', gpu: 'RTX 4070 Ti', ramGB: 32, storageGB: 1000, condition: 'Nuovo' },
     tagline: 'Più GPU, stesso budget: alternativa sopra la soglia preferita.',
     features: ['32 GB DDR5', 'SSD 1 TB', '4070 Ti', 'Aria ottimizzata'],
   },
   {
     id: 'pulse-air', name: 'PULSE Air 4060', pool: 'alternative', illustration: 'air',
+    maxResolution: '1080p',
     config: { cpu: 'Intel Core i5-13400F', gpu: 'RTX 4060', ramGB: 16, storageGB: 1000, condition: 'Nuovo' },
     tagline: 'Opzione risparmio emersa dopo il feedback sul prezzo.',
     features: ['16 GB DDR5', 'SSD 1 TB', 'Full HD/1440p', 'Silenzioso'],
   },
   {
     id: 'orbit-pro', name: 'ORBIT Pro 4070', pool: 'alternative', illustration: 'orbit',
+    maxResolution: '1440p',
     config: { cpu: 'AMD Ryzen 7 7800X3D', gpu: 'RTX 4070', ramGB: 32, storageGB: 1000, condition: 'Nuovo' },
     tagline: 'La famiglia ORBIT con 32 GB e 4070, senza 4060 Ti.',
     features: ['32 GB DDR5', 'SSD 1 TB', '4070', 'Case compatto'],
   },
   {
     id: 'titan', name: 'TITAN Edge 4080 SUPER', pool: 'alternative', illustration: 'titan',
+    maxResolution: '4K',
     config: { cpu: 'Intel Core i9-14900K', gpu: 'RTX 4080 SUPER', ramGB: 32, storageGB: 2000, condition: 'Nuovo' },
     tagline: 'Configurazione premium, fuori dal tetto di budget demo.',
     features: ['32 GB DDR5', 'SSD 2 TB', '4080 SUPER', '4K high refresh'],
   },
   {
     id: 'aura', name: 'AURA Studio 4070', pool: 'alternative', illustration: 'aura',
+    maxResolution: '1440p',
     config: { cpu: 'AMD Ryzen 5 7600', gpu: 'RTX 4070', ramGB: 16, storageGB: 1000, condition: 'Nuovo' },
     tagline: 'GPU adeguata ma 16 GB: compromesso sulla RAM preferita.',
     features: ['16 GB DDR5', 'SSD 1 TB', '4070', 'Design pulito'],

@@ -16,7 +16,7 @@ interface Props {
   favorite: boolean
   compared: boolean
   onOpen: () => void
-  onDismiss: () => void
+  onDismiss?: () => void
   onFavorite: () => void
   onCompare: () => void
 }
@@ -34,7 +34,7 @@ export default function ProductCard({ product, match, offers, favorite, compared
         <span className={`tier-badge tier-badge--${match.tier}`} data-testid={`tier-${product.id}`}>
           <span aria-hidden="true">●</span> {tierLabels[match.tier]}
         </span>
-        <button className="icon-button icon-button--dismiss" type="button" onClick={onDismiss} aria-label={`Rimuovi ${product.name} e spiega perché`} data-testid={`dismiss-${product.id}`}>×</button>
+        {onDismiss ? <button className="icon-button icon-button--dismiss" type="button" onClick={onDismiss} aria-label={`Rimuovi ${product.name} e spiega perché`} data-testid={`dismiss-${product.id}`}>×</button> : null}
       </div>
       <div className="product-card__main">
         <div className="product-card__art"><ProductIllustration variant={product.illustration} /></div>

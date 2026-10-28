@@ -3,73 +3,50 @@
 Data verifica: 28 ottobre 2026 · directory: `/workspace/fairbuy-alberto-demo`
 Stato: **verificata, non committata, non pubblicata**.
 
+Il flusso principale è **ASK vuota → due messaggi → caratteristiche mock → CONFIGURE → DISCOVER**.
+Il dettaglio completo della modifica è in `artifacts/flow-update-report.md`.
+
 ## Comandi eseguiti (ultima esecuzione)
 
 | Comando | Esito | Dettaglio |
 |---|---|---|
-| `npm ci` | PASS | 99 pacchetti installati dal lockfile |
-| `npm run build` | PASS | `tsc --noEmit` + Vite; 40 moduli; bundle 282.54 kB (85.84 kB gzip) |
-| `npm test` | PASS | 2 file, **20/20** test unitari |
-| `npx playwright test` | PASS | 1 file, **6/6** smoke E2E Chromium |
+| `npm run build` | PASS | `tsc --noEmit` + Vite; 42 moduli; JS 275.77 kB (84.31 kB gzip); CSS 27.08 kB (6.08 kB gzip); `dist/` per Pages |
+| `npm test` | PASS | 4 file, **35/35** test unitari |
+| `npm run test:e2e` | PASS | 2 file, **13/13** test E2E Chromium |
 
 Nessun test fallito, skipped o flaky nell’ultima esecuzione. Playwright usa
 `/usr/bin/chromium` (override: `PLAYWRIGHT_CHROMIUM_PATH`).
 
-## Copertura smoke E2E
+## Copertura E2E
 
-1. **Guided journey completa** — ASK → brief → ricerca progressiva → dismiss con
-   chiarimento RAM → Undo → hard vs soft GPU/RAM → confronto → offerte esatte →
-   dettaglio retailer simulato.
-2. **Dismissal SKIP + Undo** — nessuna preferenza appresa dal solo rifiuto.
-3. **Fonte offline/ripristino** — ranking parziale, banner, VORTEX neutro/conflitto,
-   recovery senza stato residuo.
-4. **Preferiti/reset** — persistenza `localStorage`, reload, reset demo.
-5. **Empty state filtro preferiti** — messaggio esplicativo e rimozione filtro.
-6. **Mobile 390 px** — nessun overflow orizzontale, card visibili, drawer navigazione.
+1. ASK vuota, zero messaggi e nessuna feature preimpostata.
+2. Primo messaggio → una sola risposta mock su uso/budget/preferenze.
+3. Secondo messaggio → testo esatto `ok, ho abbastanza informazioni` + 5 caratteristiche.
+4. Chat ancora scrivibile; le caratteristiche non si azzerano.
+5. Invio/Shift+Invio, blocco del vuoto, rendering sicuro come testo.
+6. Aggiunta/rimozione custom e persistenza tra ASK, CONFIGURE e DISCOVER.
+7. Guardie di navigazione: Configure/Discover bloccati prima dei due messaggi.
+8. Slider a due cursori: valori visibili, frecce/Home/End, nessun incrocio.
+9. Discover: nessuna card prima di 2 s, una a 2 s, due a 4 s; filtri conservati.
+10. Cleanup timer e riavvio su cambio filtro; filtro prezzo 1’800–2’000.
+11. Stato vuoto immediato e reset del filtro.
+12. Offerte esatte, dettaglio retailer simulato, confronto e preferiti.
+13. Mobile ASK/Configure/Discover senza overflow orizzontale.
 
-## Copertura unit test
+## Screenshot
 
-- Tier strong / preference / conflict / unknown.
-- Hard fail GPU e RAM solo con modalità `required`.
-- Range che attraversa il budget: nessuna esclusione automatica.
-- Offerta entro budget con stock non confermato → unknown, non “miglior prezzo”.
-- Offerta esatta mancante dalla fonte → unknown, non conflitto.
-- Feedback: “keep” resta preferenza; `required` solo se scelto esplicitamente.
-- Preferenza avoid-GPU aggiunta e reversibile.
-- Rediscovery da pool alternative; SKIP non innesca nuove fixture.
-- Gruppi venditori ordinati per totale consegnato; totali incompleti separati.
-- Configurazioni esatte non fuse; formattazione CHF.
+- `artifacts/screenshots/desktop-ask-empty.png`
+- `artifacts/screenshots/desktop-ask-revealed.png`
+- `artifacts/screenshots/desktop-configure.png`
+- `artifacts/screenshots/desktop-discover-searching.png`
+- `artifacts/screenshots/desktop-discover-complete.png`
+- `artifacts/screenshots/mobile-configure.png`
+- `artifacts/screenshots/mobile-discover.png`
+- `artifacts/screenshots/mobile-flow-discover.png`
 
-## Artefatti
+## Caveat
 
-- `artifacts/screenshots/desktop-ask.png`
-- `artifacts/screenshots/desktop-discovery.png`
-- `artifacts/screenshots/desktop-seller-offers.png`
-- `artifacts/screenshots/desktop-source-offline.png`
-- `artifacts/screenshots/mobile-discovery.png`
-- `artifacts/playwright-report/` (report HTML, ignorato da Git)
-- `artifacts/test-results/` (tracce/screenshot di failure, ignorato da Git)
-- `test-results/` (output Playwright locale, ora ignorato da Git)
-
-## Acceptance Wiki — sintesi
-
-Coperti: budget min soft/max strict con slider e input; GPU/RAM hard vs preferred;
-località coarse; card progressive e stato parziale; config/condizione esatte;
-range con base dichiarata; badge retailer + “dati sintetici”; dismiss multi-motivo,
-testo libero, SKIP, chiarimento e Undo; preferenze apprese visibili/rimovibili;
-rediscovery; verde/ambra/rosso/neutro con etichette; hard fail separato; range vs
-budget; offerte ordinate per totale confermato con breakdown, stock, consegna,
-garanzia, resi e timestamp fittizio; totali mancanti separati; uscita simulata
-“Nessun acquisto effettuato”; preferiti, confronto, reset, responsive e focus.
-
-Dettaglio tabellare: `README.md` → “Copertura acceptance Wiki”.
-
-## Gap dichiarati
-
-- Nessuna AI/STT/TTS, nessun connettore, scraping, backend, auth o monitoraggio.
-- Nessun input URL/screenshot e nessun fetch arbitrario.
-- Nessun prezzo, stock o venditore reale; nessuna copertura di mercato.
-- Match illustrativo, non probabilità né certificazione.
-- Rediscovery deterministica e limitata al pool di fixture.
-- Nessun checkout, ordine, contatto o link retailer attivo.
-- Pubblicazione GitHub Pages e commit restano al parent.
+- Dati sintetici: nessuna AI, backend, rete, acquisto o link retailer reale.
+- Le caratteristiche personalizzate non sono verificabili e non filtrano i prodotti.
+- Il filtro prezzo usa il totale consegnato confermato più basso della fixture.
+- Nessun commit, push o pubblicazione è stato eseguito.

@@ -1,55 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
+import { offers as allOffers, products, type Product } from './data/fixtures'
+import { computeMatch } from './lib/matching'
+import { mockReply } from './lib/mockReplies'
+import { formatCHF, offersForProduct } from './lib/sellers'
 import {
-  defaultBrief,
-  offers as allOffers,
-  products,
-  type Brief,
-  type DismissReason,
-  type Product,
-} from './data/fixtures'
-import { applyDismissal, discoverAlternatives, evaluateCatalog, removeLearned, type Clarification } from './lib/matching'
-import { offersForProduct } from './lib/sellers'
-import BriefSidebar from './components/BriefSidebar'
+  DEFAULT_CHARACTERISTICS,
+  DEFAULT_PRICE_RANGE,
+  PRODUCT_PRICE_BOUNDS,
+  createCustomCharacteristic,
+  deriveBrief,
+  filterSignature,
+  findDiscoveryMatches,
+  type Characteristic,
+  type PriceBounds,
+} from './lib/flow'
 import ChatPanel, { type ChatMessage } from './components/ChatPanel'
+import CharacteristicsPanel from './components/CharacteristicsPanel'
+import PriceRangeSlider from './components/PriceRangeSlider'
 import { CompareTray, CompareModal } from './components/CompareTray'
-import DismissModal from './components/DismissModal'
 import ProductCard from './components/ProductCard'
 import SellerOffers from './components/SellerOffers'
 import StageProgress, { type Stage } from './components/StageProgress'
 
-const primaryIds = products.filter((product) => product.pool === 'primary').map((product) => product.id)
-
-export function mockAskReply(text: string): string {
-  const t = text.toLowerCase()
-  const budget = t.match(/(\d[\d’.]{2,6})/)
-  if (/budget|chf|franchi|spendere|spesa|euro/.test(t)) {
-    if (budget) {
-      const amount = Number(budget[1].replace(/[’’.]/g, ''))
-      return '(risposta simulata) Ho letto circa CHF ' + amount.toLocaleString('de-CH') + " come budget. Non modifico il brief da solo: imposta l'intervallo nei campi budget, poi premi Prepara il brief."
-    }
-    return "(risposta simulata) Nessun importo riconosciuto. Il budget resta CHF 1’200–2’400 finché non lo imposti dal riquadro budget."
-  }
-  if (/fps|competitiv|sparatutto|aaa|warzone|valorant|counter|sim racing|rally|guida/.test(t)) {
-    return "(risposta simulata) Giochi registrati come spunto: per applicarli scegli uno o più chip 'A cosa giochi?'. Il brief non cambia finché non clicchi."
-  }
-  if (/4k|1440|1080|risoluzion/.test(t)) {
-    const res = /4k/.test(t) ? '4K · 60 fps' : /1440/.test(t) ? '1440p · 120 fps' : /1080/.test(t) ? '1080p · 144 fps' : null
-    return res ? '(risposta simulata) Risoluzione suggerita: ' + res + '. Applica con il chip corrispondente.' : "(risposta simulata) Non riconosco una risoluzione precisa. Scegli 1080p, 1440p o 4K dai chip."
-  }
-  if (/ram|memoria/.test(t)) {
-    const amount = t.match(/(16|32|64)\s?gb/)
-    return amount ? '(risposta simulata) RAM ' + amount[1] + ' GB annotata come spunto. Applica la preferenza dal pannello del brief.' : '(risposta simulata) Per la RAM indica quanti GB vuoi dal pannello del brief.'
-  }
-  if (/gpu|scheda video|nvidia|amd|rtx|radeon/.test(t)) {
-    return '(risposta simulata) La GPU si imposta dal pannello del brief: modello minimo e se è obbligatoria o preferita. Non deduco un modello dal testo libero.'
-  }
-  if (/grazie|ciao|perfetto/.test(t)) {
-    return '(risposta simulata) Di nulla. Quando vuoi confrontare i prodotti, prepara il brief o usa i chip.'
-  }
-  return '(risposta simulata) Messaggio ricevuto, ma questa demo non usa un modello linguistico: non interpreto testo libero generico. Usa i chip o il pannello del brief per impostare giochi, risoluzione, budget, GPU e RAM.'
-}
-
 const FAVORITES_KEY = 'fairbuy-demo-favorites-v1'
+const FIRST_FOLLOW_UP = 'Perfetto. A cosa ti serve il PC (giochi o altro), che budget hai in mente e quali preferenze contano di più — risoluzione/FPS, GPU, RAM o periferiche?'
+const REVEAL_REPLY = 'ok, ho abbastanza informazioni'
+
+type SearchStatus = 'idle' | 'searching' | 'complete'
 
 function loadFavorites(): string[] {
   try {
@@ -60,17 +37,8 @@ function loadFavorites(): string[] {
   }
 }
 
-const initialMessages: ChatMessage[] = [
-  { id: 'm1', role: 'assistant', text: 'Ciao, sono FairBuy. Cerco un PC gaming nuovo e ti faccio poche domande mirate prima di confrontare i prodotti.' },
-  { id: 'm2', role: 'user', text: 'Cerco un PC gaming nuovo.' },
-  { id: 'm3', role: 'assistant', text: 'Perfetto. A cosa giochi, a che risoluzione/FPS, e il budget CHF 1’200–2’400 include anche periferiche? Poi scegliamo GPU e RAM: obbligatorie o preferite.' },
-]
-
-interface Snapshot {
-  brief: Brief
-  discoveredIds: string[]
-  dismissedIds: string[]
-  messages: ChatMessage[]
+function messageId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 function SourcePanel({ sourceOffline, offlineOfferCount, onToggle }: { sourceOffline: boolean; offlineOfferCount: number; onToggle: () => void }) {
@@ -86,88 +54,121 @@ function SourcePanel({ sourceOffline, offlineOfferCount, onToggle }: { sourceOff
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('ask')
-  const [brief, setBrief] = useState<Brief>(defaultBrief)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [characteristics, setCharacteristics] = useState<Characteristic[]>([])
+  const [revealed, setRevealed] = useState(false)
+  const [priceRange, setPriceRange] = useState<PriceBounds>(DEFAULT_PRICE_RANGE)
   const [discoveredIds, setDiscoveredIds] = useState<string[]>([])
-  const [dismissedIds, setDismissedIds] = useState<string[]>([])
-  const [searchStatus, setSearchStatus] = useState<'idle' | 'searching' | 'partial' | 'complete'>('idle')
+  const [searchStatus, setSearchStatus] = useState<SearchStatus>('idle')
   const [revealIndex, setRevealIndex] = useState(0)
+  const [searchSignature, setSearchSignature] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [dismissId, setDismissId] = useState<string | null>(null)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareOpen, setCompareOpen] = useState(false)
   const [favorites, setFavorites] = useState<string[]>(loadFavorites)
-  const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [sourceOffline, setSourceOffline] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
-  const [toast, setToast] = useState<{ message: string; undo?: boolean } | null>(null)
-  const [lastDismissal, setLastDismissal] = useState<Snapshot | null>(null)
+  const [toast, setToast] = useState<{ message: string } | null>(null)
+
+  const brief = useMemo(() => deriveBrief(characteristics, priceRange), [characteristics, priceRange])
+  const matches = useMemo(() => findDiscoveryMatches(products, allOffers, characteristics, priceRange), [characteristics, priceRange])
+  const currentSignature = useMemo(() => filterSignature(characteristics, priceRange), [characteristics, priceRange])
+  const visibleOffers = useMemo(() => sourceOffline ? allOffers.filter((offer) => offer.retailer !== 'Galaxus') : allOffers, [sourceOffline])
+  const productById = useMemo(() => Object.fromEntries(products.map((product) => [product.id, product])), [])
+  const matchById = useMemo(() => Object.fromEntries(matches.matches.map((product) => [product.id, computeMatch(product, brief, offersForProduct(allOffers, product.id))])), [matches.matches, brief])
 
   useEffect(() => {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites))
   }, [favorites])
 
   useEffect(() => {
-    if (searchStatus !== 'searching') return
-    if (revealIndex >= primaryIds.length) {
+    if (stage !== 'discover' || searchStatus !== 'searching') return
+    if (revealIndex >= matches.matches.length) {
       setSearchStatus('complete')
-      setMessages((current) => [...current, { id: `done-${Date.now()}`, role: 'assistant', text: `Ho trovato ${primaryIds.length} prodotti esatti da fonti sintetiche. I prezzi sono range di totali consegnati confermati; le offerte con totale incompleto restano separate.` }])
       return
     }
+    const product = matches.matches[revealIndex]
     const timer = window.setTimeout(() => {
-      const id = primaryIds[revealIndex]
-      setDiscoveredIds((current) => current.includes(id) ? current : [...current, id])
+      setDiscoveredIds((current) => current.includes(product.id) ? current : [...current, product.id])
       setRevealIndex((current) => current + 1)
-    }, 650)
+    }, 2000)
     return () => window.clearTimeout(timer)
-  }, [searchStatus, revealIndex])
+  }, [stage, searchStatus, revealIndex, matches])
 
-  useEffect(() => {
-    if (searchStatus !== 'partial') return
-    const timer = window.setTimeout(() => setSearchStatus('complete'), 1100)
-    return () => window.clearTimeout(timer)
-  }, [searchStatus])
-
-  const visibleOffers = useMemo(() => sourceOffline ? allOffers.filter((offer) => offer.retailer !== 'Galaxus') : allOffers, [sourceOffline])
-  const catalog = useMemo(() => evaluateCatalog(products, brief, visibleOffers, discoveredIds, dismissedIds), [brief, visibleOffers, discoveredIds, dismissedIds])
-  const matchById = useMemo(() => Object.fromEntries(catalog.results.map((match) => [match.productId, match])), [catalog.results])
-  const productById = useMemo(() => Object.fromEntries(products.map((product) => [product.id, product])), [])
-  const offlineOfferCount = allOffers.filter((offer) => offer.retailer === 'Galaxus' && discoveredIds.includes(offer.productId)).length
-
-  const addMessage = (role: ChatMessage['role'], text: string) => setMessages((current) => [...current, { id: `m-${Date.now()}-${Math.random()}`, role, text }])
-
-  const startSearch = () => {
-    setStage('discover')
-    setSearchStatus('searching')
-    setRevealIndex(0)
-    setDiscoveredIds([])
-    setDismissedIds([])
-    setSelectedId(null)
-    setCompareIds([])
-    setFavoritesOnly(false)
-    setMessages([
-      { id: 'search-user', role: 'user', text: 'Cerco un PC gaming nuovo.' },
-      { id: 'search-assistant', role: 'assistant', text: `Cerco prodotti nuovi a Zurigo con budget CHF ${brief.budgetMin}–${brief.budgetMax}, ${brief.resolution} · ${brief.targetFps} fps. GPU RTX ${brief.gpu.value}+ ${brief.gpu.mode === 'required' ? 'obbligatoria' : 'preferita'}; RAM ${brief.ram.value} GB ${brief.ram.mode === 'required' ? 'obbligatoria' : 'preferita'}.` },
-    ])
+  const addMessage = (role: ChatMessage['role'], text: string, simulated = false) => {
+    setMessages((current) => [...current, { id: messageId(role), role, text, simulated }])
   }
 
-  const prepareBrief = () => {
-    setStage('configure')
-    addMessage('assistant', 'Rivedi il brief: puoi cambiare budget, GPU, RAM, città e preferenze. Poi avvio la ricerca simulata.')
+  const sendMessage = (text: string) => {
+    const userCount = messages.filter((message) => message.role === 'user').length
+    const userMessage: ChatMessage = { id: messageId('user'), role: 'user', text }
+
+    if (userCount === 0) {
+      setMessages((current) => [...current, userMessage, { id: messageId('assistant'), role: 'assistant', text: FIRST_FOLLOW_UP, simulated: true }])
+      return
+    }
+    if (userCount === 1) {
+      setMessages((current) => [...current, userMessage, { id: messageId('assistant'), role: 'assistant', text: REVEAL_REPLY, simulated: true }])
+      setCharacteristics(DEFAULT_CHARACTERISTICS)
+      setRevealed(true)
+      return
+    }
+    const reply = mockReply(text, brief)
+    setMessages((current) => [...current, userMessage, { id: messageId('assistant'), role: 'assistant', text: reply.text, simulated: true }])
+  }
+
+  const startDiscovery = (nextCharacteristics: Characteristic[] = characteristics, nextRange: PriceBounds = priceRange) => {
+    const result = findDiscoveryMatches(products, allOffers, nextCharacteristics, nextRange)
+    setStage('discover')
+    setDiscoveredIds([])
+    setRevealIndex(0)
+    setSearchStatus(result.matches.length > 0 ? 'searching' : 'complete')
+    setSearchSignature(filterSignature(nextCharacteristics, nextRange))
+    setSelectedId(null)
+    setMobileNav(false)
   }
 
   const navigate = (next: Stage) => {
     setMobileNav(false)
-    if (next === 'discover' && discoveredIds.length === 0) { startSearch(); return }
-    if (next === 'product' && !selectedId) { setStage('discover'); return }
+    if ((next === 'configure' || next === 'discover') && !revealed) {
+      setToast({ message: 'Completa prima i due messaggi in ASK: le caratteristiche non sono ancora disponibili.' })
+      return
+    }
+    if (next === 'product') {
+      if (selectedId) setStage('product')
+      return
+    }
+    if (next === 'discover') {
+      if (searchStatus === 'idle' || searchSignature !== currentSignature) { startDiscovery(); return }
+      setStage('discover')
+      return
+    }
     setStage(next)
+  }
+
+  const changePriceRange = (next: PriceBounds) => {
+    setPriceRange(next)
+    if (stage === 'discover') startDiscovery(characteristics, next)
+  }
+
+  const addCharacteristic = (label: string) => {
+    const clean = label.trim()
+    if (!clean) return
+    const next = [...characteristics, createCustomCharacteristic(clean)]
+    setCharacteristics(next)
+    if (stage === 'discover') startDiscovery(next, priceRange)
+  }
+
+  const removeCharacteristic = (id: string) => {
+    const next = characteristics.filter((characteristic) => characteristic.id !== id)
+    setCharacteristics(next)
+    if (stage === 'discover') startDiscovery(next, priceRange)
   }
 
   const openProduct = (id: string) => {
     setSelectedId(id)
     setStage('product')
     setMobileNav(false)
-    addMessage('assistant', `Apro la configurazione esatta di ${productById[id].name}. Confronto solo offerte della stessa configurazione e condizione.`)
   }
 
   const toggleFavorite = (id: string) => {
@@ -191,79 +192,58 @@ export default function App() {
     setToast({ message: next ? 'Fonte offline simulata: risultati parziali.' : 'Fonte ripristinata.' })
   }
 
-  const applyFeedback = (productId: string, reasons: DismissReason[], clarification: Clarification, note: string) => {
-    const product = productById[productId]
-    if (!product) return
-    const baseBrief = note ? { ...brief, notes: note } : brief
-    const result = applyDismissal(product, reasons, clarification, baseBrief)
-    const alternatives = discoverAlternatives(product, reasons, discoveredIds, [...dismissedIds, productId])
-    setLastDismissal({ brief, discoveredIds, dismissedIds, messages })
-    setBrief(result.brief)
-    setDismissedIds((current) => [...current, productId])
-    setDiscoveredIds((current) => [...new Set([...current, ...alternatives])])
-    setDismissId(null)
-    setSearchStatus(alternatives.length > 0 ? 'partial' : 'complete')
-    if (selectedId === productId) { setSelectedId(null); setStage('discover') }
-    const names = alternatives.map((id) => productById[id]?.name).filter(Boolean).join(', ')
-    addMessage('assistant', `${result.message}${names ? ` Nuove alternative trovate: ${names}.` : ''}`)
-    setToast({ message: 'Prodotto rimosso. Il brief è stato aggiornato.', undo: true })
-  }
-
-  const undoDismissal = () => {
-    if (!lastDismissal) return
-    setBrief(lastDismissal.brief)
-    setDiscoveredIds(lastDismissal.discoveredIds)
-    setDismissedIds(lastDismissal.dismissedIds)
-    setMessages(lastDismissal.messages)
-    setLastDismissal(null)
-    setToast({ message: 'Rimozione annullata.' })
-  }
-
   const resetDemo = () => {
     localStorage.removeItem(FAVORITES_KEY)
     setStage('ask')
-    setBrief(defaultBrief)
+    setMessages([])
+    setCharacteristics([])
+    setRevealed(false)
+    setPriceRange(DEFAULT_PRICE_RANGE)
     setDiscoveredIds([])
-    setDismissedIds([])
     setSearchStatus('idle')
     setRevealIndex(0)
+    setSearchSignature('')
     setSelectedId(null)
-    setDismissId(null)
     setCompareIds([])
     setCompareOpen(false)
     setFavorites([])
-    setFavoritesOnly(false)
     setSourceOffline(false)
-    setMessages(initialMessages)
-    setLastDismissal(null)
-    setToast({ message: 'Demo ripristinata: stato e preferiti cancellati.' })
+    setMobileNav(false)
+    setToast({ message: 'Demo ripristinata: chat e caratteristiche azzerate.' })
   }
-
-  const changeBrief = (next: Brief) => setBrief(next)
-  const removePref = (id: string) => { setBrief(removeLearned(brief, id)); setToast({ message: 'Preferenza rimossa dal brief.' }) }
-  const sendFreeText = (text: string) => {
-    addMessage('user', text)
-    addMessage('assistant', mockAskReply(text))
-  }
-
-  const askGame = (game: string) => setBrief((current) => ({ ...current, games: current.games.includes(game) ? current.games.filter((g) => g !== game) : [...current.games, game] }))
-  const askResolution = (resolution: string) => setBrief((current) => ({ ...current, resolution, targetFps: resolution === '4K' ? 60 : resolution === '1440p' ? 120 : 144 }))
-  const togglePeripherals = () => setBrief((current) => ({ ...current, includesPeripherals: !current.includesPeripherals }))
 
   const activeProduct = selectedId ? productById[selectedId] : null
   const activeOffers = activeProduct ? offersForProduct(visibleOffers, activeProduct.id) : []
+  const activeMatch = activeProduct ? computeMatch(activeProduct, brief, activeOffers) : null
   const selectedProducts = compareIds.map((id) => productById[id]).filter((product): product is Product => Boolean(product))
-  const filteredFeasible = catalog.feasible.filter((match) => !favoritesOnly || favorites.includes(match.productId))
-  const filteredExcluded = catalog.excluded.filter((match) => !favoritesOnly || favorites.includes(match.productId))
-  const filteredUnknown = catalog.unknown.filter((match) => !favoritesOnly || favorites.includes(match.productId))
-  const noResults = filteredFeasible.length === 0 && filteredUnknown.length === 0
-  const rangeCrossesBudget = filteredFeasible.some((match) => match.offerRange && match.offerRange[1] > brief.budgetMax)
-  const renderCard = (match: (typeof catalog.results)[number]) => {
-    const product = productById[match.productId]
-    if (!product) return null
-    return <ProductCard key={product.id} product={product} match={match} offers={offersForProduct(visibleOffers, product.id)} favorite={favorites.includes(product.id)} compared={compareIds.includes(product.id)} onOpen={() => openProduct(product.id)} onDismiss={() => setDismissId(product.id)} onFavorite={() => toggleFavorite(product.id)} onCompare={() => toggleCompare(product.id)} />
+  const discoveredProducts = discoveredIds.map((id) => productById[id]).filter((product): product is Product => Boolean(product))
+  const offlineOfferCount = allOffers.filter((offer) => offer.retailer === 'Galaxus' && discoveredIds.includes(offer.productId)).length
+
+  const renderCard = (product: Product) => {
+    const match = matchById[product.id]
+    if (!match) return null
+    return (
+      <ProductCard
+        key={product.id}
+        product={product}
+        match={match}
+        offers={offersForProduct(allOffers, product.id)}
+        favorite={favorites.includes(product.id)}
+        compared={compareIds.includes(product.id)}
+        onOpen={() => openProduct(product.id)}
+        onFavorite={() => toggleFavorite(product.id)}
+        onCompare={() => toggleCompare(product.id)}
+      />
+    )
   }
-  const title = stage === 'ask' ? 'Cerco un PC gaming nuovo' : stage === 'configure' ? 'Rivedi il brief' : stage === 'product' && activeProduct ? activeProduct.name : 'Prodotti trovati'
+
+  const title = stage === 'ask'
+    ? 'Cerco un PC gaming nuovo'
+    : stage === 'configure'
+      ? 'Configura prezzo e filtri'
+      : stage === 'product' && activeProduct
+        ? activeProduct.name
+        : 'Prodotti trovati'
 
   return (
     <div className="app-shell">
@@ -271,20 +251,15 @@ export default function App() {
         <div className="brand"><span className="brand__mark">◇</span><span>fairbuy</span></div>
         <span className="demo-badge">DEMO · dati simulati</span>
         <nav className="rail-nav">
-          <button type="button" className={stage === 'ask' ? 'is-active' : ''} onClick={() => navigate('ask')}>01 Richiesta</button>
-          <button type="button" className={stage === 'configure' ? 'is-active' : ''} onClick={() => navigate('configure')}>02 Brief</button>
-          <button type="button" className={stage === 'discover' ? 'is-active' : ''} onClick={() => navigate('discover')}>03 Scoperta</button>
-          <button type="button" className={stage === 'product' ? 'is-active' : ''} onClick={() => navigate('product')}>04 Scelta esatta</button>
-          <button type="button" className={favoritesOnly ? 'is-active' : ''} onClick={() => { setFavoritesOnly((current) => !current); if (stage === 'ask' || stage === 'configure') navigate('discover') }}>♥ Preferiti ({favorites.length})</button>
+          <button type="button" data-testid="rail-ask" className={stage === 'ask' ? 'is-active' : ''} onClick={() => navigate('ask')}>01 Richiesta</button>
+          <button type="button" data-testid="rail-configure" className={stage === 'configure' ? 'is-active' : ''} onClick={() => navigate('configure')}>02 Configura</button>
+          <button type="button" data-testid="rail-discover" className={stage === 'discover' || stage === 'product' ? 'is-active' : ''} onClick={() => navigate('discover')}>03 Scoperta</button>
         </nav>
         <div className="rail-note">
-          <strong>Percorso 3 min</strong>
-          <button type="button" onClick={prepareBrief}>1. Rivedi il brief</button>
-          <button type="button" onClick={startSearch}>2. Avvia ricerca</button>
-          <button type="button" onClick={() => discoveredIds.includes('orbit') ? setDismissId('orbit') : setToast({ message: 'Avvia prima la ricerca demo.' })}>3. Rifiuta ORBIT</button>
-          <button type="button" onClick={() => discoveredIds.includes('nova') ? openProduct('nova') : setToast({ message: 'Avvia prima la ricerca demo.' })}>4. Scegli NOVA</button>
-          <button type="button" onClick={toggleSource}>5. Simula fonte offline</button>
+          <strong>Percorso</strong>
+          <p className="rail-fine">1. Due messaggi in ASK<br />2. Configura prezzo e filtri<br />3. Scopri i prodotti</p>
         </div>
+        <p className="rail-fine" data-testid="favorites-count">♥ Preferiti salvati: {favorites.length}</p>
         <button type="button" className="rail-reset" onClick={resetDemo} data-testid="reset-demo">Ripristina demo</button>
         <p className="rail-fine">Nessun acquisto, nessun link reale, nessuna AI.</p>
       </aside>
@@ -295,69 +270,174 @@ export default function App() {
           <div><p className="eyebrow">FairBuy workspace · Zurigo</p><h1>{title}</h1></div>
           <span className="demo-badge demo-badge--top">DEMO / dati simulati</span>
         </header>
-        <StageProgress stage={stage} onNavigate={navigate} />
+        <StageProgress stage={stage} canConfigure={revealed} onNavigate={navigate} />
         <main className="app-content">
-          {(stage === 'ask' || stage === 'configure') ? (
+          {stage === 'ask' ? (
             <div className="ask-layout">
-              <ChatPanel stage={stage} messages={messages} brief={brief} searchStatus={searchStatus} discoveredCount={discoveredIds.length} totalCount={primaryIds.length} onConfigure={prepareBrief} onSearch={startSearch} onGame={askGame} onResolution={askResolution} onPeripherals={togglePeripherals} onSendFreeText={sendFreeText} />
+              <ChatPanel
+                messages={messages}
+                revealed={revealed}
+                characteristicCount={characteristics.length}
+                onSend={sendMessage}
+                onConfigure={() => navigate('configure')}
+              />
               <aside className="ask-side">
-                <div className="panel"><div className="panel-heading"><span className="panel-kicker">Brief di partenza</span><span className="synthetic-badge">mock</span></div><dl className="summary-list"><dt>Budget</dt><dd>CHF {brief.budgetMin}–{brief.budgetMax}</dd><dt>Uso</dt><dd>{brief.resolution} · {brief.targetFps} fps</dd><dt>GPU</dt><dd>RTX {brief.gpu.value}+ {brief.gpu.mode === 'required' ? 'obbligatoria' : 'preferita'}</dd><dt>RAM</dt><dd>{brief.ram.value} GB {brief.ram.mode === 'required' ? 'obbligatoria' : 'preferita'}</dd><dt>Località</dt><dd>Zurigo (coarse)</dd></dl></div>
-                <div className="panel"><div className="panel-heading"><span className="panel-kicker">Cosa è simulato</span></div><ul className="plain-list"><li>Prodotti, prezzi e retailer inventati.</li><li>Nessuna API, AI, autenticazione o scraping.</li><li>Nessun checkout né contatto venditore.</li><li>Le scelte dell’utente restano locali.</li></ul></div>
-              </aside>
-            </div>
-          ) : null}
-          {stage === 'discover' ? (
-            <div className="workspace-grid">
-              <BriefSidebar brief={brief} onChange={changeBrief} onRemoveLearned={removePref} />
-              <section className="results" aria-live="polite">
-                <div className="results-head">
-                  <div><p className="eyebrow">Discover · risultati sintetici</p><h2>{favoritesOnly ? 'Preferiti' : 'Prodotti per te'}</h2></div>
-                  <label className="checkline"><input type="checkbox" checked={favoritesOnly} onChange={(e) => setFavoritesOnly(e.target.checked)} data-testid="favorites-filter" /> Solo preferiti</label>
-                </div>
-                <div className="results-status">
-                  <span>{filteredFeasible.length} consigliati · {filteredUnknown.length} da verificare · {filteredExcluded.length} esclusi</span>
-                  <span className={`status-pill status-pill--${searchStatus}`}>{searchStatus === 'searching' ? 'ricerca in corso' : searchStatus === 'partial' ? 'risultati parziali' : 'ricerca completa'}</span>
-                </div>
-                {sourceOffline ? <p className="source-banner" role="status" data-testid="source-banner">Fonte Galaxus offline (simulazione): {offlineOfferCount} offerte non valutate. La classifica è parziale e può cambiare.</p> : null}
-                {rangeCrossesBudget ? <p className="info-banner">Alcuni range superano il tetto di budget, ma almeno un’offerta esatta rientra: il prodotto non viene escluso per l’intero range.</p> : null}
-                {noResults ? (
-                  <div className="empty-state" data-testid="empty-state">
-                    <span className="empty-state__icon">◇</span>
-                    <h3>{favoritesOnly ? 'Nessun preferito in questa ricerca' : 'Nessun prodotto soddisfa i vincoli'}</h3>
-                    <p>{favoritesOnly ? 'Salva un prodotto con il cuore, oppure disattiva il filtro.' : 'I vincoli obbligatori escludono tutte le fixture disponibili. Rilassa un requisito o rivedi il brief: FairBuy non cambia nulla da solo.'}</p>
-                    <div className="empty-state__actions">
-                      {favoritesOnly ? <button type="button" className="button button--primary" onClick={() => setFavoritesOnly(false)}>Mostra tutti i prodotti</button> : <button type="button" className="button button--primary" onClick={() => setBrief({ ...brief, budgetMax: 2400 })}>Porta il budget massimo a CHF 2’400</button>}
-                      <button type="button" className="button button--ghost" onClick={prepareBrief}>Rivedi il brief</button>
-                    </div>
+                {revealed ? (
+                  <div className="panel">
+                    <CharacteristicsPanel
+                      characteristics={characteristics}
+                      onRemove={removeCharacteristic}
+                      onAdd={addCharacteristic}
+                      hint="Modifiche qui o in Configura restano attive in tutte le fasi."
+                    />
                   </div>
                 ) : (
-                  <>
-                    {filteredFeasible.length > 0 ? <section className="result-group"><div className="result-group__head"><h3>Consigliati</h3><span className="hint">Feasibility prima del punteggio</span></div><div className="product-grid">{filteredFeasible.map(renderCard)}</div></section> : null}
-                    {filteredUnknown.length > 0 ? <section className="result-group result-group--unknown"><div className="result-group__head"><h3>Da verificare</h3><span className="hint">Dati o costi decisivi mancanti</span></div><div className="product-grid">{filteredUnknown.map(renderCard)}</div></section> : null}
-                    {filteredExcluded.length > 0 ? <section className="result-group result-group--excluded"><div className="result-group__head"><h3>Esclusi per vincolo obbligatorio</h3><span className="hint">Separati, mai nascosti senza spiegazione</span></div><div className="product-grid">{filteredExcluded.map(renderCard)}</div></section> : null}
-                  </>
+                  <div className="panel" data-testid="ask-locked">
+                    <div className="panel-heading"><span className="panel-kicker">Caratteristiche</span><span className="soft-tag">in attesa</span></div>
+                    <p className="hint">Nessuna caratteristica è preimpostata. Scrivi due messaggi: al secondo l’assistente simulato mostra le caratteristiche scelte.</p>
+                  </div>
                 )}
-              </section>
-              <aside className="insights">
-                <SourcePanel sourceOffline={sourceOffline} offlineOfferCount={offlineOfferCount} onToggle={toggleSource} />
                 <div className="panel">
-                  <div className="panel-heading"><span className="panel-kicker">Perché cambia</span><span className="soft-tag">appreso</span></div>
-                  {brief.learned.length === 0 ? <p className="hint">Nessuna preferenza appresa. Rifiuta un prodotto con un motivo per vedere l’aggiornamento del brief.</p> : <p className="hint"><strong>{brief.learned.length} preferenza/e appresa/e</strong> visibili e reversibili nel brief a sinistra.</p>}
-                  <p className="hint">I rifiuti non diventano regole obbligatorie senza una tua scelta esplicita.</p>
+                  <div className="panel-heading"><span className="panel-kicker">Cosa è simulato</span><span className="synthetic-badge">mock</span></div>
+                  <ul className="plain-list">
+                    <li>Risposte deterministiche a parole chiave, nessun modello AI.</li>
+                    <li>Caratteristiche e prodotti sono fixture sintetiche.</li>
+                    <li>Nessuna API, nessun acquisto, nessun link reale.</li>
+                  </ul>
                 </div>
-                <div className="panel">
-                  <div className="panel-heading"><span className="panel-kicker">Regole demo</span></div>
-                  <ul className="plain-list"><li>Hard fail → gruppo escluse.</li><li>Unknown cost → totale non confermato.</li><li>Range che attraversa il budget ≠ esclusione automatica.</li><li>Match illustrativo ≠ confidenza evidenze.</li></ul>
-                </div>
-                <div className="panel"><div className="panel-heading"><span className="panel-kicker">Copertura</span></div><p className="hint">Solo fixture sintetiche svizzere in CHF. Nessuna ricerca reale, nessuna esaustività di mercato, nessun link retailer attivo.</p></div>
               </aside>
             </div>
           ) : null}
-          {stage === 'product' && activeProduct ? (
+
+          {stage === 'configure' ? (
+            <div className="configure-page" data-testid="configure-page">
+              <section className="panel configure-panel" aria-label="Configura prezzo e caratteristiche">
+                <div className="panel-heading"><span className="panel-kicker">Configura</span><span className="soft-tag">dati sintetici</span></div>
+                <h2>Prezzo e caratteristiche</h2>
+                <p className="hint">Un solo intervallo di prezzo con due cursori. Le caratteristiche restano modificabili e non si azzerano tornando ad ASK.</p>
+                <PriceRangeSlider bounds={PRODUCT_PRICE_BOUNDS} value={priceRange} onChange={changePriceRange} />
+                <CharacteristicsPanel
+                  characteristics={characteristics}
+                  onRemove={removeCharacteristic}
+                  onAdd={addCharacteristic}
+                  title="Caratteristiche scelte"
+                  hint="Rimuovi o aggiungi testo libero: le modifiche vengono conservate nella ricerca."
+                />
+                <div className="configure-actions">
+                  <button type="button" className="button button--ghost" onClick={() => navigate('ask')} data-testid="back-to-ask">← Torna ad ASK</button>
+                  <button type="button" className="button button--primary" onClick={() => startDiscovery()} data-testid="start-discovery">Avvia ricerca →</button>
+                </div>
+                <p className="hint">La ricerca mostra un prodotto ogni 2 secondi e si ferma quando esaurisce i risultati compatibili.</p>
+              </section>
+              <aside className="ask-side">
+                <div className="panel">
+                  <div className="panel-heading"><span className="panel-kicker">Riepilogo filtri</span></div>
+                  <dl className="summary-list">
+                    <dt>Prezzo</dt><dd>{formatCHF(priceRange.min)} – {formatCHF(priceRange.max)}</dd>
+                    <dt>Caratteristiche</dt><dd>{characteristics.length}</dd>
+                    <dt>Compatibili (fixture)</dt><dd>{matches.matches.length}</dd>
+                  </dl>
+                </div>
+                <div className="panel">
+                  <div className="panel-heading"><span className="panel-kicker">Nota</span></div>
+                  <p className="hint">Il conteggio è calcolato sulle fixture sintetiche. Le caratteristiche personalizzate non sono verificate sui prodotti.</p>
+                </div>
+              </aside>
+            </div>
+          ) : null}
+
+          {stage === 'discover' ? (
+            <div className="discover-page" data-testid="discover-page">
+              <section className="discover-filters panel" aria-label="Filtri di ricerca">
+                <div className="panel-heading"><span className="panel-kicker">Filtri</span><span className="soft-tag">dati sintetici</span></div>
+                <PriceRangeSlider bounds={PRODUCT_PRICE_BOUNDS} value={priceRange} onChange={changePriceRange} />
+                <CharacteristicsPanel
+                  characteristics={characteristics}
+                  onRemove={removeCharacteristic}
+                  onAdd={addCharacteristic}
+                  title="Caratteristiche attive"
+                  hint="La ricerca riparte da zero quando cambi un filtro."
+                />
+              </section>
+              <div className="discover-main">
+                <section className="results" aria-live="polite">
+                  <div className="results-head">
+                    <div><p className="eyebrow">Discover · risultati sintetici</p><h2>Prodotti per te</h2></div>
+                    <span className={`status-pill status-pill--${searchStatus}`} data-testid="search-status">
+                      {searchStatus === 'searching' ? 'Sta cercando...' : searchStatus === 'complete' ? 'Ricerca completata' : 'Pronta'}
+                    </span>
+                  </div>
+                  <div className="results-status">
+                    <span data-testid="discover-count">{discoveredProducts.length} visibili · {matches.matches.length} compatibili con filtri supportati</span>
+                    <span>{searchStatus === 'searching' ? 'Inserimento ogni 2 secondi' : searchStatus === 'complete' ? 'Nessun altro risultato' : 'In attesa'}</span>
+                  </div>
+                  {matches.unsupported.length > 0 ? (
+                    <p className="info-banner" data-testid="unsupported-banner">
+                      Filtri personalizzati non verificabili: {matches.unsupported.map((characteristic) => characteristic.label).join(', ')}. Non vengono usati per il match e nessun prodotto viene dichiarato compatibile con essi.
+                    </p>
+                  ) : null}
+                  {searchStatus === 'searching' ? (
+                    <div className="searching-state" role="status" data-testid="searching-indicator">
+                      <span className="spinner" aria-hidden="true" />
+                      <div>
+                        <strong>Sta cercando...</strong>
+                        <p className="hint">Un prodotto ogni 2 secondi. {discoveredProducts.length}/{matches.matches.length} mostrati.</p>
+                      </div>
+                    </div>
+                  ) : null}
+                  {searchStatus === 'complete' && matches.matches.length === 0 ? (
+                    <div className="empty-state" data-testid="empty-state">
+                      <span className="empty-state__icon">◇</span>
+                      <h3>Nessun prodotto con questi filtri</h3>
+                      <p>Il prezzo o le caratteristiche supportate escludono tutte le fixture sintetiche. FairBuy non cambia nulla da solo: allarga un filtro o torna ad ASK.</p>
+                      <div className="empty-state__actions">
+                        <button type="button" className="button button--primary" onClick={() => { setPriceRange(PRODUCT_PRICE_BOUNDS); startDiscovery(characteristics, PRODUCT_PRICE_BOUNDS) }} data-testid="reset-filters">Allarga il budget</button>
+                        <button type="button" className="button button--ghost" onClick={() => navigate('ask')}>Torna ad ASK</button>
+                      </div>
+                    </div>
+                  ) : null}
+                  {discoveredProducts.length > 0 ? (
+                    <div className="product-grid" data-testid="discover-grid">{discoveredProducts.map(renderCard)}</div>
+                  ) : null}
+                  {searchStatus === 'complete' && matches.matches.length > 0 ? (
+                    <p className="search-complete" role="status" data-testid="search-complete">Ricerca completata: {matches.matches.length} prodotti compatibili con i filtri supportati mostrati. Nessun altro prodotto nel catalogo sintetico.</p>
+                  ) : null}
+                </section>
+                <aside className="insights">
+                  <div className="panel">
+                    <div className="panel-heading"><span className="panel-kicker">Come funziona</span></div>
+                    <ul className="plain-list">
+                      <li>Un prodotto mock ogni 2 secondi, sotto i filtri.</li>
+                      <li>La ricerca si ferma quando i risultati compatibili sono esauriti.</li>
+                      <li>Cambiare un filtro azzera e riavvia la ricerca.</li>
+                    </ul>
+                  </div>
+                  <div className="panel">
+                    <div className="panel-heading"><span className="panel-kicker">Filtri non verificabili</span></div>
+                    <p className="hint">Le caratteristiche personalizzate sono mostrate ma non vengono confrontate con le specifiche sintetiche: nessun prodotto viene dichiarato compatibile con esse.</p>
+                  </div>
+                  <div className="panel">
+                    <div className="panel-heading"><span className="panel-kicker">Copertura</span></div>
+                    <p className="hint">Solo fixture sintetiche svizzere in CHF. Nessuna ricerca reale, nessuna esaustività di mercato, nessun link retailer attivo.</p>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          ) : null}
+
+          {stage === 'product' && activeProduct && activeMatch ? (
             <div className="workspace-grid workspace-grid--product">
-              <BriefSidebar brief={brief} onChange={changeBrief} onRemoveLearned={removePref} />
-              <SellerOffers product={activeProduct} offers={activeOffers} match={matchById[activeProduct.id] ?? { productId: activeProduct.id, tier: 'unknown', reasons: [], score: null, hardFailures: [], softMisses: [], unknown: ['Dati non disponibili'], bestOffer: null, offerRange: null, excluded: false }} sourceOffline={sourceOffline} onBack={() => setStage('discover')} />
-              <aside className="insights"><SourcePanel sourceOffline={sourceOffline} offlineOfferCount={offlineOfferCount} onToggle={toggleSource} /><div className="panel"><h3>Decisione</h3><p className="hint">Scegli un’offerta esatta e apri il dettaglio retailer simulato. FairBuy non compra e non contatta nessuno.</p></div></aside>
+              <aside className="panel">
+                <div className="panel-heading"><span className="panel-kicker">Filtri attivi</span></div>
+                <p className="hint">{formatCHF(priceRange.min)} – {formatCHF(priceRange.max)}</p>
+                {characteristics.length > 0 ? <ul className="plain-list">{characteristics.map((characteristic) => <li key={characteristic.id}>{characteristic.label}</li>)}</ul> : <p className="hint">Nessuna caratteristica attiva.</p>}
+                <button type="button" className="button button--small" onClick={() => setStage('discover')}>← Torna ai risultati</button>
+              </aside>
+              <SellerOffers product={activeProduct} offers={activeOffers} match={activeMatch} sourceOffline={sourceOffline} onBack={() => setStage('discover')} />
+              <aside className="insights">
+                <SourcePanel sourceOffline={sourceOffline} offlineOfferCount={offlineOfferCount} onToggle={toggleSource} />
+                <div className="panel"><h3>Decisione</h3><p className="hint">Scegli un’offerta esatta e apri il dettaglio retailer simulato. FairBuy non compra e non contatta nessuno.</p></div>
+              </aside>
             </div>
           ) : null}
         </main>
@@ -365,8 +445,7 @@ export default function App() {
       </div>
       <CompareTray products={selectedProducts} onOpen={() => setCompareOpen(true)} onRemove={toggleCompare} onClear={() => setCompareIds([])} />
       {compareOpen ? <CompareModal products={selectedProducts} matches={matchById} onClose={() => setCompareOpen(false)} /> : null}
-      {dismissId && productById[dismissId] ? <DismissModal product={productById[dismissId]} brief={brief} onClose={() => setDismissId(null)} onApply={(reasons, clarification, note) => applyFeedback(dismissId, reasons, clarification, note)} /> : null}
-      {toast ? <div className="toast" role="status"><span>{toast.message}</span>{toast.undo ? <button type="button" onClick={undoDismissal}>Annulla</button> : null}<button type="button" className="toast__close" onClick={() => setToast(null)} aria-label="Chiudi notifica">×</button></div> : null}
+      {toast ? <div className="toast" role="status"><span>{toast.message}</span><button type="button" className="toast__close" onClick={() => setToast(null)} aria-label="Chiudi notifica">×</button></div> : null}
     </div>
   )
 }
