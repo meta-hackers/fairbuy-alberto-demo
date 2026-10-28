@@ -18,6 +18,37 @@ import SellerOffers from './components/SellerOffers'
 import StageProgress, { type Stage } from './components/StageProgress'
 
 const primaryIds = products.filter((product) => product.pool === 'primary').map((product) => product.id)
+
+export function mockAskReply(text: string): string {
+  const t = text.toLowerCase()
+  const budget = t.match(/(\d[\d’.]{2,6})/)
+  if (/budget|chf|franchi|spendere|spesa|euro/.test(t)) {
+    if (budget) {
+      const amount = Number(budget[1].replace(/[’’.]/g, ''))
+      return '(risposta simulata) Ho letto circa CHF ' + amount.toLocaleString('de-CH') + " come budget. Non modifico il brief da solo: imposta l'intervallo nei campi budget, poi premi Prepara il brief."
+    }
+    return "(risposta simulata) Nessun importo riconosciuto. Il budget resta CHF 1’200–2’400 finché non lo imposti dal riquadro budget."
+  }
+  if (/fps|competitiv|sparatutto|aaa|warzone|valorant|counter|sim racing|rally|guida/.test(t)) {
+    return "(risposta simulata) Giochi registrati come spunto: per applicarli scegli uno o più chip 'A cosa giochi?'. Il brief non cambia finché non clicchi."
+  }
+  if (/4k|1440|1080|risoluzion/.test(t)) {
+    const res = /4k/.test(t) ? '4K · 60 fps' : /1440/.test(t) ? '1440p · 120 fps' : /1080/.test(t) ? '1080p · 144 fps' : null
+    return res ? '(risposta simulata) Risoluzione suggerita: ' + res + '. Applica con il chip corrispondente.' : "(risposta simulata) Non riconosco una risoluzione precisa. Scegli 1080p, 1440p o 4K dai chip."
+  }
+  if (/ram|memoria/.test(t)) {
+    const amount = t.match(/(16|32|64)\s?gb/)
+    return amount ? '(risposta simulata) RAM ' + amount[1] + ' GB annotata come spunto. Applica la preferenza dal pannello del brief.' : '(risposta simulata) Per la RAM indica quanti GB vuoi dal pannello del brief.'
+  }
+  if (/gpu|scheda video|nvidia|amd|rtx|radeon/.test(t)) {
+    return '(risposta simulata) La GPU si imposta dal pannello del brief: modello minimo e se è obbligatoria o preferita. Non deduco un modello dal testo libero.'
+  }
+  if (/grazie|ciao|perfetto/.test(t)) {
+    return '(risposta simulata) Di nulla. Quando vuoi confrontare i prodotti, prepara il brief o usa i chip.'
+  }
+  return '(risposta simulata) Messaggio ricevuto, ma questa demo non usa un modello linguistico: non interpreto testo libero generico. Usa i chip o il pannello del brief per impostare giochi, risoluzione, budget, GPU e RAM.'
+}
+
 const FAVORITES_KEY = 'fairbuy-demo-favorites-v1'
 
 function loadFavorites(): string[] {
@@ -210,6 +241,11 @@ export default function App() {
 
   const changeBrief = (next: Brief) => setBrief(next)
   const removePref = (id: string) => { setBrief(removeLearned(brief, id)); setToast({ message: 'Preferenza rimossa dal brief.' }) }
+  const sendFreeText = (text: string) => {
+    addMessage('user', text)
+    addMessage('assistant', mockAskReply(text))
+  }
+
   const askGame = (game: string) => setBrief((current) => ({ ...current, games: current.games.includes(game) ? current.games.filter((g) => g !== game) : [...current.games, game] }))
   const askResolution = (resolution: string) => setBrief((current) => ({ ...current, resolution, targetFps: resolution === '4K' ? 60 : resolution === '1440p' ? 120 : 144 }))
   const togglePeripherals = () => setBrief((current) => ({ ...current, includesPeripherals: !current.includesPeripherals }))
@@ -263,7 +299,7 @@ export default function App() {
         <main className="app-content">
           {(stage === 'ask' || stage === 'configure') ? (
             <div className="ask-layout">
-              <ChatPanel stage={stage} messages={messages} brief={brief} searchStatus={searchStatus} discoveredCount={discoveredIds.length} totalCount={primaryIds.length} onConfigure={prepareBrief} onSearch={startSearch} onGame={askGame} onResolution={askResolution} onPeripherals={togglePeripherals} />
+              <ChatPanel stage={stage} messages={messages} brief={brief} searchStatus={searchStatus} discoveredCount={discoveredIds.length} totalCount={primaryIds.length} onConfigure={prepareBrief} onSearch={startSearch} onGame={askGame} onResolution={askResolution} onPeripherals={togglePeripherals} onSendFreeText={sendFreeText} />
               <aside className="ask-side">
                 <div className="panel"><div className="panel-heading"><span className="panel-kicker">Brief di partenza</span><span className="synthetic-badge">mock</span></div><dl className="summary-list"><dt>Budget</dt><dd>CHF {brief.budgetMin}–{brief.budgetMax}</dd><dt>Uso</dt><dd>{brief.resolution} · {brief.targetFps} fps</dd><dt>GPU</dt><dd>RTX {brief.gpu.value}+ {brief.gpu.mode === 'required' ? 'obbligatoria' : 'preferita'}</dd><dt>RAM</dt><dd>{brief.ram.value} GB {brief.ram.mode === 'required' ? 'obbligatoria' : 'preferita'}</dd><dt>Località</dt><dd>Zurigo (coarse)</dd></dl></div>
                 <div className="panel"><div className="panel-heading"><span className="panel-kicker">Cosa è simulato</span></div><ul className="plain-list"><li>Prodotti, prezzi e retailer inventati.</li><li>Nessuna API, AI, autenticazione o scraping.</li><li>Nessun checkout né contatto venditore.</li><li>Le scelte dell’utente restano locali.</li></ul></div>

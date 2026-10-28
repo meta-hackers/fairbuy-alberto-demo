@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { Brief } from '../data/fixtures'
 import type { Stage } from './StageProgress'
 
@@ -5,6 +6,7 @@ export interface ChatMessage {
   id: string
   role: 'assistant' | 'user' | 'system'
   text: string
+  simulated?: boolean
 }
 
 interface Props {
@@ -19,23 +21,49 @@ interface Props {
   onGame: (game: string) => void
   onResolution: (resolution: string) => void
   onPeripherals: () => void
+  onSendFreeText: (text: string) => void
 }
 
 const quickGames = ['FPS competitivi', 'Giochi AAA', 'Sim racing']
 const quickRes = ['1080p', '1440p', '4K']
 
 export default function ChatPanel(props: Props) {
-  const { stage, messages, brief, searchStatus, discoveredCount, totalCount, onConfigure, onSearch, onGame, onResolution, onPeripherals } = props
+  const { stage, messages, brief, searchStatus, discoveredCount, totalCount, onConfigure, onSearch, onGame, onResolution, onPeripherals, onSendFreeText } = props
+  const [draft, setDraft] = useState('')
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const logRef = useRef<HTMLDivElement>(null)
+  const draftIsEmpty = draft.trim().length === 0
+  useEffect(() => {
+    const log = logRef.current
+    if (log) log.scrollTop = log.scrollHeight
+  }, [messages, searchStatus, discoveredCount])
+  const submitDraft = () => {
+    const text = draft.trim()
+    if (!text) return
+    setDraft('')
+    onSendFreeText(text)
+    inputRef.current?.focus()
+  }
+  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault()
+      submitDraft()
+    }
+  }
+
   return (
     <section className="chat-panel" aria-label="Assistente FairBuy simulato">
       <div className="chat-panel__header">
         <div><span className="logo-mark" aria-hidden="true">◇</span><strong>FairBuy Assistant</strong></div>
         <span className="soft-tag">scriptato · nessun modello AI</span>
       </div>
-      <div className="chat-log" aria-live="polite">
+      <div className="chat-log" aria-live="polite" aria-relevant="additions" ref={logRef} data-testid="chat-log">
         {messages.map((message) => (
-          <div className={`bubble bubble--${message.role}`} key={message.id}>
-            <span className="bubble__role">{message.role === 'user' ? 'Tu' : message.role === 'system' ? 'Sistema demo' : 'FairBuy'}</span>
+          <div className={`bubble bubble--${message.role}`} key={message.id} data-testid={`message-${message.role}`} data-simulated={message.simulated ? 'true' : undefined}>
+            <span className="bubble__role">
+              {message.role === 'user' ? 'Tu' : message.role === 'system' ? 'Sistema demo' : 'FairBuy'}
+              {message.simulated ? <span className="bubble__sim">simulata · nessuna AI</span> : null}
+            </span>
             <p>{message.text}</p>
           </div>
         ))}
@@ -58,6 +86,14 @@ export default function ChatPanel(props: Props) {
             <div className="chip-row">{quickRes.map((res) => <button type="button" key={res} className={`chip ${brief.resolution === res ? 'is-active' : ''}`} onClick={() => onResolution(res)}>{res} · {res === '4K' ? '60' : res === '1440p' ? '120' : '144'} fps</button>)}</div>
           </div>
           <label className="checkline"><input type="checkbox" checked={brief.includesPeripherals} onChange={onPeripherals} /> Il budget include periferiche</label>
+          <div className="composer">
+            <label className="composer__label" htmlFor="ask-free-text">Scrivi la tua risposta</label>
+            <textarea id="ask-free-text" className="composer__input" rows={2} value={draft} placeholder="Es. gioco soprattutto FPS a 1440p, budget massimo 1800 CHF" onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKeyDown} data-testid="ask-input" />
+            <div className="chat-actions__row">
+              <button type="button" className="button button--ghost button--small" onClick={submitDraft} disabled={draftIsEmpty} data-testid="ask-send">Invia</button>
+              <span className="hint">Invio per spedire · Shift+Invio per andare a capo · risposte simulate, nessuna AI</span>
+            </div>
+          </div>
           <div className="chat-actions__row">
             <button type="button" className="button button--primary" onClick={onConfigure} data-testid="prepare-brief">Prepara il brief →</button>
           </div>

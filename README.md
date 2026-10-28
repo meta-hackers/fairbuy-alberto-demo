@@ -160,3 +160,8 @@ Screenshot e report sono in `artifacts/` (`screenshots/` è ignorata da Git).
 - Un’integrazione live richiederebbe accesso autorizzato alle fonti, evidenze, timestamp,
   gestione errori e un backend: tutto esplicitamente fuori da questa demo.
 - Nessun commit o push è stato eseguito dall’agente; la pubblicazione è gestita dal parent.
+
+
+## ASK con testo libero
+
+In fase ASK puoi digitare una risposta libera (Invio invia, Shift+Invio va a capo). Le risposte sono deterministiche e scriptate su parole chiave (budget, giochi, risoluzione, RAM, GPU) e sono sempre etichettate come simulate: nessun modello AI, nessuna richiesta di rete. Il testo libero non modifica il brief: le preferenze si applicano con i chip o dal pannello del brief.
