@@ -6,6 +6,10 @@ Stato: proposta da discutere, non implementazione. Data: 28 ottobre 2026.
 
 Mantenere il percorso della demo **ASK → CONFIGURE → DISCOVER → LEARN → CHOOSE → COMPARE**, sostituendo progressivamente stato locale e fixture con un backend. Il frontend non deve conoscere provider, prompt o credenziali dei marketplace.
 
+**L’AI è esclusivamente sul backend.** Il client non interpreta il testo, non decide quali informazioni mancano, non classifica la categoria e non valuta compatibilità o requisiti. Renderizza messaggi, domande e controlli descritti dal server e raccoglie testo, scelte e conferme. La validazione client è solo sintattica o di interfaccia.
+
+I requisiti testuali sono il dato primario. La struttura è un’interpretazione backend facoltativa, parziale e versionata, non un prerequisito per inviare una richiesta.
+
 Tre confini:
 
 1. **API HTTP frontend/backend**: sessioni, conversazione, brief, ricerca, feedback e confronto.
@@ -59,39 +63,89 @@ La risposta contiene `assistantMessage`, `briefProposal`, `missingFields` e `rea
 
 ### Brief versionato
 
-`PATCH /v1/sessions/{sid}/brief`, con `If-Match` impostato all'ETag letto in precedenza:
+Il client può inviare testo libero senza conoscere uno schema specifico per categoria. Esempio di modifica esplicita tramite `PATCH /v1/sessions/{sid}/brief`, con `If-Match` all’ETag precedente:
 
 ```json
 {
-  "category": "gaming_pc",
-  "budget": { "minMinor": 120000, "maxMinor": 240000, "currency": "CHF", "basis": "delivered_total" },
-  "location": { "country": "CH", "city": "Zurich" },
   "requirements": [
-    { "id": "ram", "key": "ram_gb", "operator": "gte", "value": 32, "mode": "preferred" },
-    { "id": "condition", "key": "condition", "operator": "eq", "value": "new", "mode": "required" },
-    { "id": "wifi", "key": "custom", "text": "Wi-Fi 7", "mode": "preferred", "verification": "unknown" }
+    { "id": "req_hue", "text": "Serve essere compatibile con Philips Hue", "mode": "required" },
+    { "id": "req_power", "text": "Non voglio un consumo superiore ai 20 W", "mode": "required" }
   ]
 }
 ```
 
-Valori monetari interi in centesimi. Il minimo budget è normalmente una preferenza, il massimo un limite: renderlo esplicito nel contratto definitivo. Il backend assegna `revision` ed ETag; una versione superata produce `412 Precondition Failed`. `verification` e campi derivati vengono calcolati dal backend, non accettati come prova dal client.
+`mode` è una scelta esplicita dell’utente; se assente il backend può proporla, senza trasformare silenziosamente una preferenza in obbligo. La PATCH sostituisce la lista dei requisiti se presente; un requisito senza ID riceve un ID dal server. Il testo originale rimane conservato anche dopo normalizzazione. Budget e posizione sono opzionali: non devono essere già estratti dal client.
 
-Distinguere caratteristiche **required** e **preferred**. Un testo libero non supportato rimane `unknown`, non diventa automaticamente compatibile. Per GPU usare attributi e benchmark documentati, non ordinare i nomi commerciali numericamente.
+Il server restituisce `revision`, ETag, requisiti e interpretazioni. Esempio di snapshot dopo chiarimento utente:
+
+```json
+{
+  "revision": 4,
+  "requirements": [
+    {
+      "id": "req_power",
+      "text": "Non voglio un consumo superiore ai 20 W",
+      "mode": "required",
+      "interpretation": {
+        "status": "confirmed",
+        "summary": "Consumo massimo del dispositivo stesso, non potenza del carico collegato",
+        "basis": "user_clarification",
+        "normalized": { "attribute": "device_max_power", "operator": "lte", "value": 20, "unit": "W" }
+      }
+    }
+  ],
+  "clarifications": [],
+  "readyToSearch": true
+}
+```
+
+`interpretation`, categoria, `clarifications`, readiness e valutazioni prodotto sono campi **server-owned**, non accettati come verità dal client. `confirmed` riguarda il significato del requisito, non la compatibilità di un prodotto. Una versione superata produce `412 Precondition Failed`. La risposta conserva tutti i requisiti, anche quelli non normalizzabili; l’esempio mostra solo quello energetico.
+
+### Chiarimenti e requisiti non strutturabili
+
+Il backend può restituire una domanda con `id`, `requirementIds`, `text` e opzioni facoltative. Il client mostra la domanda e invia la risposta tramite l’endpoint messaggi con `replyToClarificationId`. Il backend restituisce una nuova proposta di brief da confermare. Nessuna scelta richiede logica AI nel browser.
+
+- **Philips Hue:** chiarire se serve associazione diretta al Bridge, controllo nell’app Hue o interoperabilità tramite un altro hub. La sola dicitura Zigbee non dimostra compatibilità. Conservare il requisito testuale e cercare evidenze per modello, firmware e integrazione richiesta.
+- **20 W:** chiarire dispositivo o carico collegato, consumo tipico o massimo e condizioni operative. Un carico massimo di 2000 W non è una misura di autoconsumo. Una misura tipica di 15 W non dimostra un massimo di 20 W.
+- Requisiti come “facile da installare” possono restare testuali: l’AI backend valuta fonti e contesto e produce una motivazione, senza inventare un attributo numerico.
+
+La normalizzazione aiuta ricerca e regole deterministiche, ma non è obbligatoria. L’AI interpreta e raccoglie evidenze; confronti numerici con unità coerenti vengono eseguiti da codice backend. Il server decide se mancano chiarimenti bloccanti (`readyToSearch: false`) oppure se può fare una ricerca esplorativa rendendo esplicite le ambiguità.
+
+### Valutazione per requisito e prodotto
+
+Ogni risultato include `requirementAssessments`, legati alla revisione del brief:
+
+```json
+{
+  "requirementId": "req_hue",
+  "status": "unknown",
+  "reason": "La scheda indica Zigbee ma non documenta associazione diretta a Hue Bridge",
+  "evidenceRefs": ["evidence_123"],
+  "missingEvidence": ["Compatibilità documentata per questo modello con Hue Bridge"],
+  "method": "ai_evidence_review"
+}
+```
+
+Stati: `satisfied`, `not_satisfied`, `unknown`. Ogni evidenza risolvibile include fonte, riferimento o URL, data e affermazione supportata; dati sintetici restano etichettati come tali. Separare le prove fattuali dal giudizio AI e non trattare la confidenza del modello come certificazione.
+
+Un obbligo non soddisfatto esclude il prodotto; un obbligo sconosciuto lo rende **da verificare**, non pienamente compatibile. Le preferenze incidono sul ranking senza diventare filtri obbligatori. In COMPARE mostrare le valutazioni per requisito, non solo attributi predefiniti. Per GPU usare benchmark documentati, non ordinare nomi commerciali numericamente. Gli importi restano interi in centesimi, con valuta e componenti sconosciute esplicite.
 
 ### Ricerca asincrona
 
 `POST /v1/sessions/{sid}/searches`:
 
 ```json
-{ "briefRevision": 3, "sources": ["fixture"], "limit": 20 }
+{ "briefRevision": 4, "limit": 20 }
 ```
+
+Il backend sceglie le fonti abilitate in base al brief e alle capacità degli adapter. Il client non deve sapere quali fonti servono. Se mancano chiarimenti bloccanti, risponde `409` con codice `clarification_required` e riferimenti alle domande, anziché avviare una ricerca prematura.
 
 Risposta `202`:
 
 ```json
 {
   "searchId": "search_123",
-  "briefRevision": 3,
+  "briefRevision": 4,
   "status": "queued",
   "statusUrl": "/v1/searches/search_123",
   "eventsUrl": "/v1/searches/search_123/events"
@@ -147,7 +201,7 @@ Un'offerta deve includere:
 }
 ```
 
-Risposta: `feedbackId`, esclusione applicata e, se utile, `suggestedBriefPatch`. Escludere un prodotto non modifica automaticamente tutti i filtri. L'utente conferma la proposta tramite PATCH del brief.
+Risposta: `feedbackId`, esclusione applicata e, se utile, `suggestedBriefProposal`. Escludere un prodotto non modifica automaticamente tutti i filtri. L’utente conferma la proposta tramite PATCH del brief, inviando i testi e le scelte confermate, non le interpretazioni interne del modello. Anche note e motivi liberi vengono interpretati solo dal backend.
 
 - `GET /v1/sessions/{sid}/feedback`: log LEARN.
 - `POST /v1/sessions/{sid}/feedback/{fid}/undo`: annulla l'effetto di esclusione e lo registra nel log. Non annulla eventuali modifiche del brief confermate separatamente.
@@ -157,7 +211,7 @@ Risposta: `feedbackId`, esclusione applicata e, se utile, `suggestedBriefPatch`.
 
 `POST /v1/sessions/{sid}/comparisons`: `{ "searchId": "search_123", "productIds": ["product_1", "product_2"] }`.
 
-Risposta: caratteristiche normalizzate, miglior totale confermato per prodotto, fonti/timestamp, trade-off e campi sconosciuti. Non inventare prestazioni, disponibilità o garanzie. Nel MVP i prodotti provengono dallo stesso snapshot di ricerca.
+Risposta: valutazioni dei requisiti testuali e caratteristiche normalizzate, miglior totale confermato per prodotto, fonti/timestamp, trade-off e campi sconosciuti. Non inventare prestazioni, disponibilità o garanzie. Nel MVP i prodotti provengono dallo stesso snapshot di ricerca.
 
 ## 4. Tool MCP e adapter di marketplace
 
@@ -186,7 +240,7 @@ HTTP e MCP riusano gli stessi modelli di dominio ma non sono copie uno dell'altr
 
 ## 6. Ordine di implementazione
 
-1. Definire OpenAPI 3.1 per sessione, messaggi, brief, ricerca e risultati; riusare JSON Schema per i tool MCP.
+1. Definire OpenAPI 3.1 per sessione, messaggi, requisiti testuali, chiarimenti, brief, ricerca e valutazioni per requisito; riusare JSON Schema per i tool MCP.
 2. Implementare backend con adapter fixture e stesso percorso della demo. Nessun accesso live necessario per validare i contratti.
 3. Collegare ASK e CONFIGURE senza cambiare il layout; salvare stato e revisione sul backend.
 4. Collegare DISCOVER a job e snapshot, poi SSE, annullamento e riconnessione.
@@ -202,6 +256,10 @@ HTTP e MCP riusano gli stessi modelli di dominio ma non sono copie uno dell'altr
 - Eventi di una ricerca vecchia non inquinano i nuovi risultati.
 - Una fonte fallita produce risultati parziali espliciti, non un falso successo completo.
 - Costi sconosciuti non diventano zero; fixture non appaiono come dati reali.
+- Il client invia un requisito sconosciuto senza implementare parser, tassonomie o regole per categoria.
+- Hue genera un chiarimento se ambiguo; la sola parola Zigbee non produce `satisfied`.
+- Il limite 20 W distingue autoconsumo, carico, tipico e massimo; un dato tipico non prova un limite massimo.
+- Un requisito non normalizzabile resta valutabile dal backend su testo ed evidenze.
 - Una caratteristica custom rimane non verificata finché non esiste evidenza.
 - Esclusione e ripristino non alterano di nascosto preferenze confermate.
 - Un'altra sessione non può leggere messaggi, risultati o feedback altrui.
