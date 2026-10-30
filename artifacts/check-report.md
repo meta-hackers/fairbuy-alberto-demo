@@ -1,6 +1,6 @@
 # FairBuy gaming-PC demo — check report
 
-Data verifica: 28 ottobre 2026 · directory: `/workspace/fairbuy-alberto-demo`
+Data verifica: 28 ottobre 2026 · directory: `/workspace/fairbuy-alberto-demo`  
 Stato: **verificata, non committata, non pubblicata**.
 
 Il flusso principale è **ASK vuota → due messaggi → caratteristiche mock → CONFIGURE → DISCOVER**.

@@ -43,35 +43,27 @@ export function computeMatch(product: Product, brief: Brief, productOffers: Offe
   const unknownCosts = productOffers.filter((offer) => totalOf(offer) === null)
   const withinBudget = confirmedTotals.filter((total) => total <= brief.budgetMax)
 
-  if (brief.newOnly && product.config.condition !== 'New') {
-    hardFailures.push('Condition differs from “new only”.')
-  }
-  if (brief.avoidGpu.includes(product.config.gpu)) {
-    hardFailures.push(`GPU ${product.config.gpu} is on the “avoid” list.`)
-  }
-  if (brief.gpu.mode === 'required' && gpuValue(product.config.gpu) < brief.gpu.value) {
-    hardFailures.push(`GPU ${product.config.gpu}: below the required RTX ${brief.gpu.value} minimum.`)
-  }
-  if (brief.ram.mode === 'required' && product.config.ramGB < brief.ram.value) {
-    hardFailures.push(`RAM ${product.config.ramGB} GB: below the required ${brief.ram.value} GB minimum.`)
-  }
+  if (brief.newOnly && product.config.condition !== 'New') softMisses.push('Condition differs from your new-only preference.')
+  if (brief.avoidGpu.includes(product.config.gpu)) softMisses.push(`You marked ${product.config.gpu} to avoid.`)
+  if (brief.gpu.mode === 'required' && gpuValue(product.config.gpu) < brief.gpu.value) softMisses.push(`Below your preferred RTX ${brief.gpu.value} GPU target.`)
+  if (brief.ram.mode === 'required' && product.config.ramGB < brief.ram.value) softMisses.push(`Below your preferred ${brief.ram.value} GB RAM target.`)
 
   if (productOffers.length === 0) {
     unknown.push('No offers available from active sources.')
   } else if (confirmedTotals.length === 0 && unknownCosts.length === 0) {
-    hardFailures.push('No price or cost information available.')
+      unknown.push('No price or cost information available.')
   } else if (confirmedTotals.length > 0 && withinBudget.length === 0) {
     if (unknownCosts.length > 0) {
       unknown.push(`No confirmed offer within ${formatCHF(brief.budgetMax)}; ${unknownCosts.length} total(s) unconfirmed.`)
     } else {
-      hardFailures.push(`All confirmed offers exceed the ${formatCHF(brief.budgetMax)} budget ceiling.`)
+      softMisses.push(`All known offers exceed your ${formatCHF(brief.budgetMax)} budget preference.`)
     }
   } else if (confirmedTotals.length === 0 && unknownCosts.length > 0) {
     unknown.push(`Final price unconfirmed for ${unknownCosts.length} offer(s).`)
   }
 
   if (brief.minHard && best !== null && best < brief.budgetMin) {
-    hardFailures.push(`Below the mandatory minimum of ${formatCHF(brief.budgetMin)}.`)
+    softMisses.push(`Below your ${formatCHF(brief.budgetMin)} lower price preference.`)
   }
   const inStockWithinBudget = groups.confirmedInStock.filter((row) => (row.total ?? Infinity) <= brief.budgetMax)
   if (withinBudget.length > 0 && inStockWithinBudget.length === 0) {
@@ -95,8 +87,8 @@ export function computeMatch(product: Product, brief: Brief, productOffers: Offe
     softMisses.push(`Below the ${formatCHF(brief.budgetMin)} target: the minimum is a soft preference.`)
   }
 
-  if (gpuMeets) reasons.push(`GPU ${product.config.gpu} ${brief.gpu.mode} requirement met`)
-  if (ramMeets) reasons.push(`${product.config.ramGB} GB RAM ${brief.ram.mode} requirement met`)
+  if (gpuMeets) reasons.push(`GPU ${product.config.gpu} matches your ${brief.gpu.mode} preference`)
+  if (ramMeets) reasons.push(`${product.config.ramGB} GB RAM matches your ${brief.ram.mode} preference`)
   if (best !== null) reasons.push(`Lowest delivered total shown: ${formatCHF(best)}`)
   if (range?.unknownCount) reasons.push(`${range.unknownCount} offer(s) with unconfirmed totals`)
   if (product.config.condition === 'New') reasons.push('New condition')
@@ -107,18 +99,19 @@ export function computeMatch(product: Product, brief: Brief, productOffers: Offe
   else if (softMisses.length > 0) tier = 'preference'
 
   let score: number | null = null
-  if (tier !== 'conflict' && tier !== 'unknown' && best !== null) {
-    const spec = Math.min(100, 45 + (gpuMeets ? 25 : 0) + (ramMeets ? 20 : 0) + (product.config.storageGB >= 1000 ? 10 : 0))
-    const value = Math.max(0, Math.min(100, 100 - 55 * (best / brief.budgetMax)))
-    const confidence = groups.confirmedInStock.length
-      ? groups.confirmedInStock.reduce((sum, row) => sum + row.offer.confidence, 0) / groups.confirmedInStock.length
-      : 0
-    const valuePriority = brief.learned.some((pref) => pref.kind === 'value')
-    score = valuePriority
-      ? Math.round((spec * 0.4 + value * 0.45 + confidence * 0.15) * 10) / 10
-      : Math.round((spec * 0.55 + value * 0.3 + confidence * 0.15) * 10) / 10
+  if (best !== null) {
+    const specs = (gpuMeets ? 35 : 10) + (ramMeets ? 30 : 10) + (product.config.storageGB >= 1000 ? 10 : 0)
+    const price = Math.max(0, Math.min(25, 25 * (1 - Math.max(0, best - brief.budgetMax) / Math.max(brief.budgetMax, 1))))
+    const learned = brief.learned.some((pref) => pref.kind === 'value') ? 10 : 0
+    score = Math.round(Math.min(100, specs + price + learned) * 10) / 10
   }
 
+  if (gpuMeets) reasons.push(`Matches your RTX ${brief.gpu.value}+ GPU preference (${product.config.gpu})`)
+  else reasons.push(`Trade-off: ${product.config.gpu} is below your RTX ${brief.gpu.value}+ GPU preference`)
+  if (ramMeets) reasons.push(`Matches your ${brief.ram.value} GB RAM preference (${product.config.ramGB} GB)`)
+  else reasons.push(`Trade-off: ${product.config.ramGB} GB RAM is below your ${brief.ram.value} GB preference`)
+  if (best !== null && best > brief.budgetMax) reasons.push(`Over budget preference by ${formatCHF(best - brief.budgetMax)}; included for comparison`)
+  else if (best !== null) reasons.push(`Delivered offer range ${range ? `${formatCHF(range.min)}–${formatCHF(range.max)}` : formatCHF(best)} is within your price preference`)
   return {
     productId: product.id,
     tier,
@@ -129,7 +122,7 @@ export function computeMatch(product: Product, brief: Brief, productOffers: Offe
     unknown,
     bestOffer: best,
     offerRange: range ? [range.min, range.max] : null,
-    excluded: tier === 'conflict',
+    excluded: false,
   }
 }
 

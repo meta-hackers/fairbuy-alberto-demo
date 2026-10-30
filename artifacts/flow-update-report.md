@@ -1,7 +1,7 @@
 # FairBuy — flow update verification report
 
-Data verifica: 28 ottobre 2026
-Directory: `/workspace/fairbuy-alberto-demo`
+Data verifica: 28 ottobre 2026  
+Directory: `/workspace/fairbuy-alberto-demo`  
 Stato finale: **FINITO — build, unit test ed E2E passano; nessuna pubblicazione eseguita.**
 
 ## Esito sintetico

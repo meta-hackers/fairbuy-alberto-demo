@@ -12,6 +12,8 @@ export interface Feedback {
   clarification: string
   active: boolean
   changes: FeatureChange[]
+  /** Preferences learned from this feedback, removed again on undo. */
+  preferenceIds?: string[]
 }
 
 export function clarifyFeatures(features: Characteristic[], reasons: string[], clarification: Clarification) {
@@ -33,7 +35,8 @@ export function undoFeatureChanges(features: Characteristic[], changes: FeatureC
 }
 
 export const reasonLabels: Record<string, string> = {
-  expensive: 'Too expensive', ram: 'Insufficient RAM', gpu: 'Insufficient GPU',
-  avoidGpu: 'GPU to avoid (feedback only)', other: 'Other reason', skip: 'No reason given',
-  compatibility: 'Compatibility to verify', capacity: 'Capacity / load to verify',
+  expensive: 'Too expensive', ram: 'Not enough RAM', gpu: 'GPU not powerful enough',
+  avoidGpu: 'GPU to avoid (feedback only)', other: 'Another reason', skip: 'No reason given',
+  compact: 'Too large', quiet: 'Too noisy', capacity: 'Load capacity too low',
+  compatibility: 'Compatibility to verify', wiring: 'Wiring or voltage to verify',
 }

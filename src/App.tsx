@@ -1,28 +1,42 @@
 import { useEffect, useMemo, useState } from 'react'
-import { offers, products, type DismissReason } from './data/fixtures'
-import { computeMatch, type Clarification } from './lib/matching'
-import { clarifyFeatures, undoFeatureChanges, type Feedback } from './lib/feedback'
+import { offers, products } from './data/fixtures'
+import type { Feedback } from './lib/feedback'
 import { routeCategory } from './lib/category'
-import { mockReply } from './lib/mockReplies'
 import { offersForProduct } from './lib/sellers'
-import { DEFAULT_CHARACTERISTICS, DEFAULT_PRICE_RANGE, PRODUCT_PRICE_BOUNDS, createCustomCharacteristic,
-  deriveBrief, filterSignature, findDiscoveryMatches, setCharacteristicMode, type Characteristic } from './lib/flow'
+import {
+  DEFAULT_PRICE_RANGE,
+  PRODUCT_PRICE_BOUNDS,
+  TOP_K,
+  createCustomCharacteristic,
+  filterSignature,
+  rankProducts,
+  setCharacteristicMode,
+  type Characteristic,
+} from './lib/flow'
+import {
+  deriveFeedbackClarification,
+  extractRequirements,
+  preferencesFromFeedback,
+} from './lib/requirements'
 import FeedbackLog from './components/FeedbackLog'
-import DismissModal from './components/DismissModal'
+import { reasonLabels } from './lib/feedback'
+import DismissModal, { type FeedbackDraft } from './components/DismissModal'
 import RelayFlow from './components/RelayFlow'
 import ChatPanel, { type ChatMessage } from './components/ChatPanel'
 import CharacteristicsPanel from './components/CharacteristicsPanel'
+import LoadingIndicator from './components/LoadingIndicator'
 import PriceRangeSlider from './components/PriceRangeSlider'
 import ProductCard from './components/ProductCard'
 import SellerOffers from './components/SellerOffers'
 import ShoppingShell from './components/ShoppingShell'
 import type { Stage } from './components/StageProgress'
 
-const FAVORITES_KEY = 'fairbuy-demo-favorites-v1'
-function loadFavorites(): string[] {
-  try { const value = JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? '[]'); return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [] } catch { return [] }
-}
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+function budgetRangeFor(max: number) {
+  const ceiling = Math.max(PRODUCT_PRICE_BOUNDS.min, Math.min(PRODUCT_PRICE_BOUNDS.max, Math.round(max)))
+  return { min: Math.min(DEFAULT_PRICE_RANGE.min, ceiling), max: ceiling }
+}
 
 export default function App() {
   const [relaySeed, setRelaySeed] = useState<string[] | null>(null)
@@ -36,95 +50,172 @@ export default function App() {
   const [signature, setSignature] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string[]>([])
-  const [favorites, setFavorites] = useState(loadFavorites)
   const [feedback, setFeedback] = useState<Feedback[]>([])
   const [dismiss, setDismiss] = useState<string | null>(null)
-  const brief = useMemo(() => deriveBrief(features, range), [features, range])
-  const result = useMemo(() => findDiscoveryMatches(products, offers, features, range), [features, range])
-  const eligible = result.matches.filter((product) => !feedback.some((entry) => entry.active && entry.productId === product.id))
-  const pending = eligible.find((product) => !shown.includes(product.id))
+  const [refreshing, setRefreshing] = useState(false)
+
+  const activeDismissed = useMemo(() => new Set(feedback.filter((entry) => entry.active).map((entry) => entry.productId)), [feedback])
+  const ranked = useMemo(() => rankProducts(products, offers, features, range), [features, range])
+  const activeRanked = useMemo(() => ranked.filter((result) => !activeDismissed.has(result.product.id)), [ranked, activeDismissed])
+  const dismissedRanked = useMemo(() => ranked.filter((result) => activeDismissed.has(result.product.id)), [ranked, activeDismissed])
+  const top = useMemo(() => activeRanked.slice(0, TOP_K), [activeRanked])
+  const shownRanked = top.filter((result) => shown.includes(result.product.id))
+  const pending = top.find((result) => !shown.includes(result.product.id))
+  const [updateNotice, setUpdateNotice] = useState<string | null>(null)
+  const [highlighted, setHighlighted] = useState<string[]>([])
+  const entryByProduct = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const entry of feedback) if (entry.active && !map.has(entry.productId)) map.set(entry.productId, entry.id)
+    return map
+  }, [feedback])
+  const dismissedNoteFor = (productId: string): string | null => {
+    const entry = feedback.find((item) => item.productId === productId && item.active)
+    if (!entry) return null
+    const reasonText = entry.reasons.length ? entry.reasons.map((reason) => reasonLabels[reason] ?? reason).join(', ') : 'your feedback'
+    return `Dismissed: ${reasonText}${entry.note ? ` — ${entry.note}` : ''}`
+  }
   const active = products.find((product) => product.id === selected)
   const currentSignature = filterSignature(features, range)
 
-  useEffect(() => { localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)) }, [favorites])
   useEffect(() => {
     if (stage !== 'discover' || !pending) return
-    const timer = window.setTimeout(() => setShown((ids) => ids.includes(pending.id) ? ids : [...ids, pending.id]), 2000)
+    const timer = window.setTimeout(() => setShown((ids) => ids.includes(pending.product.id) ? ids : [...ids, pending.product.id]), 2000)
     return () => window.clearTimeout(timer)
-  }, [stage, pending?.id, shown])
+  }, [stage, pending?.product.id, shown])
+
+  useEffect(() => {
+    if (stage === 'discover' && !pending) setRefreshing(false)
+  }, [stage, pending])
 
   const navigate = (next: Stage) => {
     if (next !== 'ask' && !ready || next === 'buy' && !active) return
-    if (next === 'discover' && signature !== currentSignature) { setShown([]); setSignature(currentSignature) }
+    if (next === 'discover' && signature !== currentSignature) { setShown([]); setSignature(currentSignature); setRefreshing(false); setUpdateNotice(null); setHighlighted([]) }
     setStage(next)
   }
+
   const send = (text: string) => {
-    const count = messages.filter((m) => m.role === 'user').length
+    const count = messages.filter((message) => message.role === 'user').length
     const user: ChatMessage = { id: uid(), role: 'user', text }
+
     if (!count && routeCategory(text) === 'relay') { setRelaySeed([text]); return }
     if (count === 1 && ambiguous && routeCategory(text) === 'relay') {
       setRelaySeed([messages[0].text, text]); return
     }
+    if (count === 1 && ambiguous) setAmbiguous(false)
+
     let reply: string
-    if (!count && routeCategory(text) === 'ambiguous') {
+    const ambiguousNow = !count && routeCategory(text) === 'ambiguous'
+    if (ambiguousNow) {
       setAmbiguous(true)
       reply = 'Do you mean a computer or a smart relay for a light, rather than a Nintendo or network switch?'
-    } else if (!count) {
-      reply = 'What will you use it for, what is your budget, and which requirements matter most?'
-    } else if (count === 1) {
-      reply = 'Your starting requirements are ready. Review and edit them in Configure.'
-      setFeatures(DEFAULT_CHARACTERISTICS); setReady(true)
-    } else reply = mockReply(text, brief).text
+    } else {
+      const userText = [...messages.filter((message) => message.role === 'user').map((message) => message.text), text].join(' ')
+      const extracted = extractRequirements('pc', userText)
+      if (extracted.budgetMax !== null) setRange(budgetRangeFor(extracted.budgetMax))
+      setFeatures(extracted.features)
+      const enough = extracted.features.length >= 2 || (extracted.features.length >= 1 && extracted.budgetMax !== null)
+      setReady(enough)
+      const pickups = extracted.features.map((feature) => feature.label)
+      if (pickups.length === 0) {
+        reply = 'I need a little more detail to infer a useful requirement. What will you use it for, or what feature matters most? Budget can be reviewed in Configure. This is a synthetic demo with fictional catalog data.'
+      } else if (!enough) {
+        reply = `I picked up ${pickups.join('; ')}. Add one more useful detail — such as a budget, resolution, memory target or feature — and I’ll open Configure.`
+      } else {
+        const budget = extracted.budgetMax !== null ? ` I noted ${Math.round(extracted.budgetMax)} CHF as a starting soft price preference.` : ''
+        reply = `I picked up ${pickups.join('; ')}.${budget} Review and edit these in Configure. This is a synthetic demo with fictional catalog data.`
+      }
+    }
     setMessages((current) => [...current, user, { id: uid(), role: 'assistant', text: reply }])
   }
+
   const restart = () => {
     setRelaySeed(null); setAmbiguous(false); setStage('ask'); setMessages([]); setFeatures([]); setReady(false)
-    setRange(DEFAULT_PRICE_RANGE); setShown([]); setSignature(''); setSelected(null); setExpanded([]); setFeedback([]); setDismiss(null)
+    setRange(DEFAULT_PRICE_RANGE); setShown([]); setSignature(''); setSelected(null); setExpanded([]); setFeedback([]); setDismiss(null); setRefreshing(false); setUpdateNotice(null); setHighlighted([])
   }
-  const apply = (reasons: DismissReason[], clarification: Clarification, note: string) => {
-    const product = products.find((item) => item.id === dismiss)!
-    const { next, changes } = clarifyFeatures(features, reasons, clarification)
-    setFeedback((current) => [...current, { id: uid(), productId: product.id, productName: product.name, reasons, note, active: true, changes,
-      clarification: changes.length ? `Updated: ${changes.map((change) => change.after.label).join('; ')}.` : 'Requirements unchanged.' }])
-    setFeatures(next); setDismiss(null)
+
+  const apply = (draft: FeedbackDraft) => {
+    if (!dismiss) return
+    const product = products.find((item) => item.id === dismiss)
+    if (!product) return
+    const entryId = uid()
+    const fallback = deriveFeedbackClarification('pc', draft.reasons, draft.note).text
+    const clarification = draft.clarification || fallback || draft.note.trim()
+    const existingLabels = new Set(features.map((feature) => feature.label.toLowerCase()))
+    const learned = preferencesFromFeedback('pc', clarification)
+      .filter((feature) => !existingLabels.has(feature.label.toLowerCase()))
+      .map((feature, index) => ({ ...feature, id: `feedback-${entryId}-${index}` }))
+    const nextFeatures = [...features, ...learned]
+    setFeatures(nextFeatures)
+    setFeedback((current) => [...current, {
+      id: entryId, productId: product.id, productName: product.name, reasons: draft.reasons, note: draft.note,
+      active: true, changes: [], clarification: clarification || 'No new preference; product kept at the bottom of the discovery list.',
+      preferenceIds: learned.map((feature) => feature.id),
+    }])
     if (selected === product.id) setSelected(null)
-    if (changes.length) { setShown([]); setSignature(filterSignature(next, range)) }
+    setDismiss(null)
+    setShown([])
+    setSignature(filterSignature(nextFeatures, range))
+    setRefreshing(true)
+    setUpdateNotice(`Matches updated: ${clarification || 'preference updated'} — scores recomputed for the visible list.`)
+    setHighlighted(ranked.map((result) => result.product.id))
   }
+
   const undo = (id: string) => {
-    const entry = feedback.find((item) => item.id === id)!
-    const next = undoFeatureChanges(features, entry.changes)
-    setFeatures(next); setFeedback((current) => current.map((item) => item.id === id ? { ...item, active: false } : item))
-    setShown((ids) => ids.filter((productId) => productId !== entry.productId))
+    const entry = feedback.find((item) => item.id === id)
+    if (!entry) return
+    const remove = new Set(entry.preferenceIds ?? [])
+    const nextFeatures = features.filter((feature) => !remove.has(feature.id))
+    setFeatures(nextFeatures)
+    setFeedback((current) => current.map((item) => item.id === id ? { ...item, active: false } : item))
+    setShown([])
+    setSignature(filterSignature(nextFeatures, range))
+    setRefreshing(true)
+    setUpdateNotice('Matches updated: feedback restored — scores recomputed for the visible list.')
+    setHighlighted(ranked.map((result) => result.product.id))
   }
 
   if (relaySeed) return <RelayFlow initialMessages={relaySeed} onRestart={restart} />
-  return <ShoppingShell stage={stage} ready={ready} selected={Boolean(active)} favorites={favorites.length} onNavigate={navigate} onRestart={restart}>
+
+  return <ShoppingShell stage={stage} ready={ready} selected={Boolean(active)} learning={Boolean(dismiss)} onNavigate={navigate} onRestart={restart}>
     {stage === 'ask' ? <ChatPanel messages={messages} revealed={ready} characteristicCount={features.length} onSend={send} onConfigure={() => navigate('configure')} /> : null}
+
     {stage === 'configure' ? <section className="panel" data-testid="configure-page">
-      <h2>Budget & requirements</h2>
+      <h2>Your requirements and price range</h2>
+      <p className="hint configure-intro">These are the requirements inferred from your messages. Edit, remove or add any detail. Everything below is a soft preference used for ranking.</p>
       <PriceRangeSlider bounds={PRODUCT_PRICE_BOUNDS} value={range} onChange={setRange} />
-      <CharacteristicsPanel characteristics={features} onRemove={(id) => setFeatures(features.filter((f) => f.id !== id))}
+      <CharacteristicsPanel characteristics={features} onRemove={(id) => setFeatures(features.filter((feature) => feature.id !== id))}
         onAdd={(label) => setFeatures([...features, createCustomCharacteristic(label)])}
-        onMode={(id, mode) => setFeatures(features.map((f) => f.id === id ? setCharacteristicMode(f, mode) : f))} />
-      <p className="hint">Required targets exclude products below the target. Preferred targets allow trade-offs.</p>
+        onMode={(id, mode) => setFeatures(features.map((feature) => feature.id === id ? setCharacteristicMode(feature, mode) : feature))} />
+      <p className="hint" data-testid="soft-note">All requirements and the price range are soft preferences. High priority changes ranking emphasis; no product is excluded for a mismatch.</p>
+      <div className="configure-cta">
+        <button type="button" className="button button--primary" data-testid="configure-continue" onClick={() => navigate('discover')}>Find products →</button>
+      </div>
     </section> : null}
+
     {stage === 'discover' ? <section data-testid="discover-page">
-      <div className="section-toolbar"><p role="status" data-testid="search-status">{pending ? 'Finding options…' : `${eligible.length} options found`}</p>
+      <div className="section-toolbar"><p data-testid="search-status">{pending ? `Finding ranked options… ${shownRanked.length}/${top.length}` : `${top.length} ranked options found`}</p>
         <button type="button" className="text-button" onClick={() => navigate('configure')}>Edit in Configure</button></div>
-      <p className="hint catalog-note">Prices are reference amounts. Check current availability and costs before buying.</p>
-      {result.unsupported.length > 0 ? <p className="evidence-note">Some requirements cannot be verified against the available product information.</p> : null}
-      <div className="product-grid">{eligible.filter((product) => shown.includes(product.id)).map((product) => <ProductCard key={product.id}
-        product={product} offers={offersForProduct(offers, product.id)} match={computeMatch(product, brief, offersForProduct(offers, product.id))}
-        favorite={favorites.includes(product.id)} onFavorite={() => setFavorites((ids) => ids.includes(product.id) ? ids.filter((id) => id !== product.id) : [...ids, product.id])}
-        expanded={expanded.includes(product.id)} onToggle={() => setExpanded((ids) => ids.includes(product.id) ? ids.filter((id) => id !== product.id) : [...ids, product.id])}
-        onDismiss={() => setDismiss(product.id)} onOpen={() => { setSelected(product.id); setStage('buy') }} />)}</div>
-      {!eligible.length ? <div className="empty-state" data-testid="empty-state"><h2>No matching options</h2><p>Adjust your requirements in Configure, or restore an excluded product in Learn.</p></div> : null}
-      {pending ? <p className="hint" data-testid="searching-indicator">Finding the next option…</p> : null}
-      {feedback.some((entry) => entry.active) ? <button className="text-button" type="button" onClick={() => navigate('learn')}>Review excluded products in Learn</button> : null}
+      <p className="hint catalog-note">Synthetic demo · fictional catalog · up to {TOP_K} ranked matches · price ranges use delivered totals (item, shipping and fees, VAT included) across the listed retailer offers. Every requirement, including budget, is a soft preference.</p>
+      {features.some((feature) => !feature.supported) ? <p className="evidence-note">Some requirements cannot be verified against the available product information. They are shown without affecting the score.</p> : null}
+      {pending ? <LoadingIndicator mode={refreshing ? 'updating' : 'loading'} /> : null}
+      {updateNotice ? <p className="update-banner" role="status" aria-live="polite" data-testid="matches-updated">{updateNotice}</p> : null}
+      {feedback.length > 0 ? <FeedbackLog entries={feedback} onUndo={undo} /> : null}
+      <div className="product-grid">{shownRanked.map((result) => <ProductCard key={result.product.id}
+        ranked={result}
+        expanded={expanded.includes(result.product.id)} onToggle={() => setExpanded((ids) => ids.includes(result.product.id) ? ids.filter((id) => id !== result.product.id) : [...ids, result.product.id])}
+        onDismiss={() => setDismiss(result.product.id)} onOpen={() => { setSelected(result.product.id); setStage('buy') }}
+        highlighted={highlighted.includes(result.product.id)} />)}
+        {dismissedRanked.map((result) => <ProductCard key={`dismissed-${result.product.id}`}
+          ranked={result}
+          expanded={expanded.includes(result.product.id)} onToggle={() => setExpanded((ids) => ids.includes(result.product.id) ? ids.filter((id) => id !== result.product.id) : [...ids, result.product.id])}
+          onDismiss={() => setDismiss(result.product.id)} onOpen={() => { setSelected(result.product.id); setStage('buy') }}
+          dismissedNote={dismissedNoteFor(result.product.id)} onRestore={() => { const entryId = entryByProduct.get(result.product.id); if (entryId) undo(entryId) }}
+          highlighted={highlighted.includes(result.product.id)} />)}</div>
+      {!top.length && !dismissedRanked.length ? <div className="empty-state" data-testid="empty-state"><h2>No options in this demo catalog</h2><p>Undo feedback or adjust your preferences in Configure. Nothing is excluded by a soft preference alone.</p></div> : null}
     </section> : null}
-    {stage === 'learn' ? <><FeedbackLog entries={feedback} onUndo={undo} /><button type="button" className="text-button back-link" onClick={() => navigate('discover')}>← Back to Discover</button></> : null}
+
     {stage === 'buy' && active ? <SellerOffers product={active} offers={offersForProduct(offers, active.id)} onBack={() => navigate('discover')} /> : null}
-    {dismiss ? <DismissModal key={dismiss} product={products.find((p) => p.id === dismiss)!} brief={brief}
+    {dismiss ? <DismissModal key={dismiss} productName={products.find((product) => product.id === dismiss)?.name ?? 'This product'} category="pc"
       onClose={() => { const id = dismiss; setDismiss(null); document.querySelector<HTMLButtonElement>(`[data-testid="dismiss-${id}"]`)?.focus() }} onApply={apply} /> : null}
   </ShoppingShell>
 }

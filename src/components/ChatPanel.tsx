@@ -66,7 +66,7 @@ export default function ChatPanel({ messages, revealed, characteristicCount, onS
       <div className="chat-actions">
         {!revealed ? (
           <p className="hint" data-testid="ask-progress">
-            {userCount === 0 ? 'Start with the product you need.' : 'Add your budget and priorities to continue.'}
+            {userCount === 0 ? 'Start with the product you need.' : 'Add useful details such as a use case, size, performance target, or feature.'}
           </p>
         ) : (
           <div className="chat-actions__row chat-actions__row--between">

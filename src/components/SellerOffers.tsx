@@ -1,5 +1,5 @@
 import type { Offer, Product } from '../data/fixtures'
-import { formatCHF, priceRange, totalOf } from '../lib/sellers'
+import { demoOfferUrl, formatCHF, priceRange, totalOf } from '../lib/sellers'
 
 export default function SellerOffers({ product, offers, onBack }: { product: Product; offers: Offer[]; onBack: () => void }) {
   const c = product.config
@@ -25,6 +25,7 @@ export default function SellerOffers({ product, offers, onBack }: { product: Pro
           <dt>Terms</dt><dd>{offer.warrantyMonths}-month warranty · {offer.returnDays}-day returns</dd>
           <dt>Recorded</dt><dd>{offer.sourceTs}</dd>
         </dl>
+        <a className="offer-link" data-testid={`seller-link-${offer.id}`} href={demoOfferUrl(offer.retailer, product.id)} target="_blank" rel="noopener noreferrer">View at {offer.retailer} (synthetic demo link) →</a>
         {offer.note ? <p className="evidence-note">{offer.note}</p> : null}
       </article>
     })}</div>

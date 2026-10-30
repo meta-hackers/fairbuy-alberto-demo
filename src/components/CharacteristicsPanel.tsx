@@ -36,11 +36,11 @@ export default function CharacteristicsPanel({ characteristics, onRemove, onAdd,
         <ul className="characteristic-list">
           {characteristics.map((characteristic) => (
             <li className="characteristic-item" key={characteristic.id} data-testid="characteristic-item" data-supported={characteristic.supported ? 'true' : 'false'}>
-              <span className="characteristic-item__label">{onMode ? characteristic.label.replace(/ · (required|preference only)$/, '') : characteristic.label}</span>
+              <span className="characteristic-item__label">{onMode ? characteristic.label.replace(/ · (required|preference only|high priority|normal priority)$/, '') : characteristic.label}</span>
               {!characteristic.supported ? <span className="characteristic-item__warning">unverified</span> : null}
               {onMode && (characteristic.kind === 'gpu' || characteristic.kind === 'ram') ? <select aria-label={`${characteristic.kind.toUpperCase()} priority`}
                 value={characteristic.mode ?? 'preferred'} onChange={(event) => onMode(characteristic.id, event.target.value as CharacteristicMode)}>
-                <option value="required">Required</option><option value="preferred">Preferred</option>
+                <option value="required">High priority</option><option value="preferred">Normal priority</option>
               </select> : null}
               <button
                 type="button"
@@ -71,7 +71,7 @@ export default function CharacteristicsPanel({ characteristics, onRemove, onAdd,
       </form>
       {unsupported.length > 0 ? (
         <p className="info-banner" data-testid="unsupported-note">
-          Unverified requirements are saved for review, but do not filter products or establish compatibility.
+          Unverified requirements are saved for review, but do not affect ranking or establish compatibility.
         </p>
       ) : null}
     </section>

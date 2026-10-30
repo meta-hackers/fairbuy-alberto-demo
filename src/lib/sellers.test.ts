@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { offers, products } from '../data/fixtures'
-import { bestConfirmedOffer, formatCHF, groupOffers, groupProductsByExactConfig, priceRange } from './sellers'
+import { bestConfirmedOffer, formatCHF, formatCHFRange, groupOffers, groupProductsByExactConfig, priceRange, priceRangeRetailers } from './sellers'
 
 const novaOffers = offers.filter((offer) => offer.productId === 'nova')
 
@@ -53,5 +53,12 @@ describe('seller offer grouping and totals', () => {
     expect(formatCHF(1899)).toContain('CHF')
     expect(formatCHF(1899)).toContain('1')
     expect(formatCHF(29.65)).toBe('CHF 29.65')
+    expect(formatCHFRange(1450, 1640)).toBe(`${formatCHF(1450)}–${formatCHF(1640).replace('CHF ', '')}`)
+  })
+
+  it('lists only retailers whose confirmed offers contribute to the range', () => {
+    const incomplete = novaOffers.map((offer) => offer.id === 'nova-p' ? { ...offer, shipping: null } : offer)
+    expect(priceRangeRetailers(novaOffers)).toEqual(['Galaxus', 'PC Dock', 'MediaWorld', 'Amazon', 'TechStore'])
+    expect(priceRangeRetailers(incomplete)).toEqual(['Galaxus', 'MediaWorld', 'Amazon', 'TechStore'])
   })
 })

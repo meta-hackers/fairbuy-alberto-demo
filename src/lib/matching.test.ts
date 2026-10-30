@@ -26,19 +26,19 @@ describe('computeMatch', () => {
     expect(match.softMisses.join(' ')).toContain('RAM')
   })
 
-  it('excludes a product with a known mandatory GPU conflict', () => {
+  it('scores a below-target GPU as a soft conflict', () => {
     const brief = { ...defaultBrief, gpu: { mode: 'required' as const, value: 4070 } }
     const match = computeMatch(product('orbit'), brief, productOffers('orbit'))
-    expect(match.tier).toBe('conflict')
-    expect(match.excluded).toBe(true)
-    expect(match.score).toBeNull()
+    expect(match.tier).toBe('preference')
+    expect(match.excluded).toBe(false)
+    expect(match.score).not.toBeNull()
   })
 
-  it('excludes a product with a known mandatory RAM conflict', () => {
+  it('scores a below-target RAM as a soft conflict', () => {
     const brief = { ...defaultBrief, ram: { mode: 'required' as const, value: 32 } }
     const match = computeMatch(product('strix'), brief, productOffers('strix'))
-    expect(match.tier).toBe('conflict')
-    expect(match.hardFailures.join(' ')).toContain('RAM')
+    expect(match.tier).toBe('preference')
+    expect(match.excluded).toBe(false)
   })
 
   it('does not exclude a product whose range crosses budget when an exact offer fits', () => {
@@ -63,10 +63,10 @@ describe('computeMatch', () => {
     expect(match.hardFailures).toHaveLength(0)
   })
 
-  it('excludes a product when every confirmed offer is over budget', () => {
+  it('keeps a product when every confirmed offer is over the soft budget', () => {
     const match = computeMatch(product('titan'), defaultBrief, productOffers('titan'))
-    expect(match.tier).toBe('conflict')
-    expect(match.hardFailures.join(' ')).toContain('budget ceiling')
+    expect(match.tier).toBe('preference')
+    expect(match.excluded).toBe(false)
   })
 })
 
@@ -107,7 +107,7 @@ describe('evaluateCatalog', () => {
     const incomplete = offers.map((offer) => offer.id === 'vortex-g' ? { ...offer, stock: 'To be confirmed' as const } : offer)
     const result = evaluateCatalog(products, defaultBrief, incomplete, ['nova', 'orbit', 'vortex', 'strix', 'titan', 'aura'], [])
     expect(result.feasible.map((match) => match.productId)).toContain('nova')
-    expect(result.excluded.map((match) => match.productId)).toContain('titan')
+    expect(result.feasible.map((match) => match.productId)).toContain('titan')
     expect(result.unknown.map((match) => match.productId)).toContain('vortex')
   })
 })

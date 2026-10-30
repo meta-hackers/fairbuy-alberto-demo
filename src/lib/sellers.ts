@@ -17,6 +17,10 @@ export function formatCHF(value: number): string {
   return `CHF ${new Intl.NumberFormat('en-CH', { maximumFractionDigits: 2 }).format(value)}`
 }
 
+export function formatCHFRange(min: number, max: number): string {
+  return `${formatCHF(min)}–${formatCHF(max).replace('CHF ', '')}`
+}
+
 export function totalOf(offer: Offer): number | null {
   if (offer.shipping === null || offer.fees === null) return null
   return offer.item + offer.shipping + offer.fees
@@ -63,6 +67,11 @@ export function priceRange(offers: Offer[]): PriceRange | null {
   }
 }
 
+export function priceRangeRetailers(offers: Offer[]): string[] {
+  const groups = groupOffers(offers)
+  return [...new Set([...groups.confirmedInStock, ...groups.confirmedUnknownStock].map((row) => row.offer.retailer))]
+}
+
 export function groupProductsByExactConfig(products: Product[], offers: Offer[]) {
   const groups = new Map<string, { key: string; productIds: string[]; offers: Offer[] }>()
   for (const product of products) {
@@ -74,6 +83,11 @@ export function groupProductsByExactConfig(products: Product[], offers: Offer[])
     groups.set(key, entry)
   }
   return [...groups.values()]
+}
+
+export function demoOfferUrl(retailer: string, productId: string): string {
+  const shop = retailer.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return `https://example.com/${shop}/${productId}`
 }
 
 export function offersForProduct(offers: Offer[], productId: string): Offer[] {

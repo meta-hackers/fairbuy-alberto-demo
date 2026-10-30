@@ -2,7 +2,7 @@
 export type Condition = 'New' | 'Refurbished'
 export type Tier = 'strong' | 'preference' | 'conflict' | 'unknown'
 export type RequirementMode = 'required' | 'preferred'
-export type Retailer = 'Amazon' | 'Galaxus' | 'MediaWorld' | 'TechStore' | 'PC Dock'
+export type Retailer = 'Amazon' | 'Galaxus' | 'MediaWorld' | 'TechStore' | 'PC Dock' | 'Lantern Lane' | 'Bright Parcel'
 export type Stock = 'Available' | 'Out of stock' | 'To be confirmed'
 export type Resolution = '1080p' | '1440p' | '4K'
 export type Illustration = 'forge' | 'pulse' | 'elite' | 'strix' | 'flux' | 'vega' | 'air' | 'orbit' | 'titan' | 'aura'
