@@ -11,9 +11,9 @@ import PriceRangeSlider from './PriceRangeSlider'
 import type { Stage } from './StageProgress'
 import ShoppingShell from './ShoppingShell'
 import FeedbackLog from './FeedbackLog'
-import { reasonLabels } from '../lib/feedback'
 import DismissModal, { type FeedbackDraft } from './DismissModal'
 import LoadingIndicator from './LoadingIndicator'
+import { distinctFollowUpCount } from '../lib/askProgress'
 
 const RELAY_BOUNDS = { min: 0, max: 150 }
 const RELAY_DEFAULT_RANGE = { min: 0, max: 150 }
@@ -77,6 +77,7 @@ export default function RelayFlow({ initialMessages, onRestart }: { initialMessa
   const [ready, setReady] = useState(start.features.length >= 2 || (start.features.length >= 1 && start.budgetMax !== null))
   const [features, setFeatures] = useState<Characteristic[]>(start.features)
   const [range, setRange] = useState(start.budgetMax !== null ? relayBudgetRange(start.budgetMax) : RELAY_DEFAULT_RANGE)
+  const [budgetOrigin, setBudgetOrigin] = useState<'chat' | 'user-edit' | 'demo-default'>(start.budgetMax !== null ? 'chat' : 'demo-default')
   const [shown, setShown] = useState<string[]>([])
   const [signature, setSignature] = useState('')
   const [expanded, setExpanded] = useState<string[]>([])
@@ -86,21 +87,15 @@ export default function RelayFlow({ initialMessages, onRestart }: { initialMessa
   const [refreshing, setRefreshing] = useState(false)
 
   const activeDismissed = useMemo(() => new Set(feedback.filter((entry) => entry.active).map((entry) => entry.productId)), [feedback])
-  const ranked = useMemo(() => rankProducts(relayProducts.map(asScoringProduct), scoringOffers, features, range), [features, range])
-  const activeRanked = useMemo(() => ranked.filter((result) => !activeDismissed.has(result.product.id)), [ranked, activeDismissed])
-  const dismissedRanked = useMemo(() => ranked.filter((result) => activeDismissed.has(result.product.id)), [ranked, activeDismissed])
-  const top = useMemo(() => activeRanked.slice(0, TOP_K), [activeRanked])
+  const ranked = useMemo(() => rankProducts(
+    relayProducts.filter((product) => !activeDismissed.has(product.id)).map(asScoringProduct),
+    scoringOffers.filter((offer) => !activeDismissed.has(offer.productId)), features, range,
+  ), [activeDismissed, features, range])
+  const top = useMemo(() => ranked.slice(0, TOP_K), [ranked])
   const shownRanked = top.filter((result) => shown.includes(result.product.id))
   const pending = top.find((result) => !shown.includes(result.product.id))
   const [updateNotice, setUpdateNotice] = useState<string | null>(null)
   const [highlighted, setHighlighted] = useState<string[]>([])
-  const dismissedNoteFor = (productId: string): string | null => {
-    const entry = feedback.find((item) => item.productId === productId && item.active)
-    if (!entry) return null
-    const reasonText = entry.reasons.length ? entry.reasons.map((reason) => reasonLabels[reason] ?? reason).join(', ') : 'your feedback'
-    return `Dismissed: ${reasonText}${entry.note ? ` — ${entry.note}` : ''}`
-  }
-  const entryIdFor = (productId: string): string | null => feedback.find((item) => item.productId === productId && item.active)?.id ?? null
   const personalized = (result: { reasons: string[]; tradeoffs: string[]; unknown: string[] }): string => {
     const first = result.reasons[0] ?? result.tradeoffs[0] ?? result.unknown[0]
     if (first) return `I thought you would like this because ${first.charAt(0).toLowerCase()}${first.slice(1)}`
@@ -108,6 +103,7 @@ export default function RelayFlow({ initialMessages, onRestart }: { initialMessa
   }
   const active = relayProducts.find((product) => product.id === selected)
   const currentSignature = filterSignature(features, range)
+  const followUpCount = distinctFollowUpCount(messages.filter((message) => message.role === 'user').map((message) => message.text))
 
   useEffect(() => {
     if (stage !== 'discover' || !pending) return
@@ -120,22 +116,31 @@ export default function RelayFlow({ initialMessages, onRestart }: { initialMessa
   }, [stage, pending])
 
   const navigate = (next: Stage) => {
-    if (next !== 'ask' && !ready || next === 'buy' && !active) return
+    if (next !== 'ask' && followUpCount < 2 || next === 'buy' && !active) return
     if (next === 'discover' && signature !== currentSignature) { setShown([]); setSignature(currentSignature); setRefreshing(false); setUpdateNotice(null); setHighlighted([]) }
     setStage(next)
   }
 
   const send = (text: string) => {
-    const userText = [...messages.filter((message) => message.role === 'user').map((message) => message.text), text].join(' ')
+    const priorUserTexts = messages.filter((message) => message.role === 'user').map((message) => message.text)
+    const userText = [...priorUserTexts, text].join(' ')
     const extracted = extractRequirements('relay', userText)
+    const nextFollowUpCount = distinctFollowUpCount([...priorUserTexts, text])
     const enough = extracted.features.length >= 2 || (extracted.features.length >= 1 && extracted.budgetMax !== null)
-    if (extracted.budgetMax !== null) setRange(relayBudgetRange(extracted.budgetMax))
+    if (extracted.budgetMax !== null) { setRange(relayBudgetRange(extracted.budgetMax)); setBudgetOrigin('chat') }
     setFeatures(extracted.features)
     setReady(enough)
     const pickups = extracted.features.map((feature) => feature.label)
-    const reply = pickups.length
+    let reply = pickups.length
       ? `${enough ? 'I picked up' : 'I picked up'} ${pickups.join('; ')}.${extracted.budgetMax !== null ? ` I noted ${Math.round(extracted.budgetMax)} CHF as a starting soft price preference.` : ''} ${enough ? 'Review and edit these in Configure.' : 'Add one more detail so Configure is useful.'} This is a synthetic demo with fictional relay products and offers.`
       : 'I need a little more detail about the light, wiring, bridge or budget. This is a synthetic demo with fictional data.'
+    if (nextFollowUpCount < 2) {
+      reply = nextFollowUpCount === 0
+        ? 'Thanks — I have your starting request. What is one useful detail to consider, such as compatibility, installation context, size, or budget?'
+        : 'Thanks. What is one other useful detail or preference I should consider? A different answer helps refine your brief; you can keep it short.'
+    } else {
+      reply = `${reply} Your brief is ready to review; you can continue to Configure now.`
+    }
     setMessages((current) => [...current, { id: `u-${current.length}`, role: 'user', text }, { id: `a-${current.length}`, role: 'assistant', text: reply }])
   }
 
@@ -156,7 +161,7 @@ export default function RelayFlow({ initialMessages, onRestart }: { initialMessa
     setFeatures(nextFeatures)
     setFeedback((current) => [...current, {
       id: entryId, productId: product.id, productName: product.name, reasons: draft.reasons, note: draft.note,
-      active: true, changes: [], clarification: clarification || 'No new preference; product kept at the bottom of the discovery list.',
+      active: true, changes: [], clarification: clarification || 'No new preference; this product is dismissed from the current request.',
       preferenceIds: learned.map((feature) => feature.id),
     }])
     if (selected === product.id) setSelected(null)
@@ -182,13 +187,13 @@ export default function RelayFlow({ initialMessages, onRestart }: { initialMessa
     setHighlighted(ranked.map((result) => result.product.id))
   }
 
-  return <ShoppingShell stage={stage} ready={ready} selected={Boolean(active)} learning={Boolean(dismiss)} onNavigate={navigate} onRestart={onRestart}>
-    {stage === 'ask' ? <ChatPanel messages={messages} revealed={ready} characteristicCount={features.length} onSend={send} onConfigure={() => navigate('configure')} placeholder="Your light, bridge, wiring and budget…" /> : null}
+  return <ShoppingShell stage={stage} ready={followUpCount >= 2} selected={Boolean(active)} learning={Boolean(dismiss)} onNavigate={navigate} onRestart={onRestart}>
+    {stage === 'ask' ? <ChatPanel messages={messages} revealed={ready} characteristicCount={features.length} followUpCount={followUpCount} onSend={send} onConfigure={() => navigate('configure')} placeholder="Your light, bridge, wiring and budget…" /> : null}
 
     {stage === 'configure' ? <section className="panel" data-testid="configure-page">
       <h2>Your requirements and price range</h2>
       <p className="hint configure-intro">These are the relay requirements inferred from your messages. Edit, remove or add any detail. Everything below is a soft preference used for ranking.</p>
-      <PriceRangeSlider bounds={RELAY_BOUNDS} value={range} step={5} onChange={setRange} idPrefix="relay-price" />
+      <PriceRangeSlider bounds={RELAY_BOUNDS} value={range} step={5} origin={budgetOrigin} onChange={(value) => { setRange(value); setBudgetOrigin('user-edit') }} idPrefix="relay-price" />
       <p className="hint">Budget includes the item, shipping, and fees.</p>
       <CharacteristicsPanel characteristics={features} onRemove={(id) => setFeatures(features.filter((feature) => feature.id !== id))} onAdd={(label) => setFeatures([...features, createCustomCharacteristic(label)])} />
       <p className="hint" data-testid="soft-note">All requirements and the price range are soft preferences. No device is excluded for a mismatch; trade-offs stay visible in Discover.</p>
@@ -205,12 +210,10 @@ export default function RelayFlow({ initialMessages, onRestart }: { initialMessa
       {pending ? <LoadingIndicator mode={refreshing ? 'updating' : 'loading'} /> : null}
       {updateNotice ? <p className="update-banner" role="status" aria-live="polite" data-testid="matches-updated">{updateNotice}</p> : null}
       {feedback.length > 0 ? <FeedbackLog entries={feedback} onUndo={undo} /> : null}
-      <div className="product-grid">{[...shownRanked, ...dismissedRanked].map((result) => {
+      <div className="product-grid">{shownRanked.map((result) => {
         const product = relayProducts.find((item) => item.id === result.product.id)!
         const rangeText = result.offerRange ? formatCHFRange(result.offerRange[0], result.offerRange[1]) : 'Price unknown'
-        const dismissedNote = dismissedNoteFor(product.id)
-        const dismissed = Boolean(dismissedNote)
-        return <article className={`product-card${dismissed ? ' product-card--dismissed' : ''}${highlighted.includes(product.id) ? ' product-card--updated' : ''}`} key={product.id} data-testid={`product-card-${product.id}`} data-score={result.score} data-dismissed={dismissed ? 'true' : 'false'}>
+        return <article className={`product-card${highlighted.includes(product.id) ? ' product-card--updated' : ''}`} key={product.id} data-testid={`product-card-${product.id}`} data-score={result.score}>
           <button type="button" className="product-summary" data-testid={`expand-${product.id}`} aria-expanded={expanded.includes(product.id)} aria-controls={`relay-details-${product.id}`} onClick={() => setExpanded(toggle(expanded, product.id))}>
             <span className="product-summary__heading">
               <span className="product-summary__name">{product.name}</span>
@@ -224,8 +227,9 @@ export default function RelayFlow({ initialMessages, onRestart }: { initialMessa
             </span>
             <span aria-hidden="true">{expanded.includes(product.id) ? '−' : '+'}</span>
           </button>
+          <p className="product-attributes" data-testid={`attributes-${product.id}`}>{product.capacityW} W rated capacity · {product.voltageV} V AC · {product.dimensions} · New</p>
           <p className="personalized-reason" data-testid={`personalized-${product.id}`}>{personalized(result)}</p>
-          {dismissed ? <p className="dismissed-note" data-testid={`dismissed-note-${product.id}`}>{dismissedNote}</p> : null}
+          {result.tradeoffs.length ? <p className="card-tradeoff" data-testid={`card-tradeoff-${product.id}`}>{result.tradeoffs[0]}</p> : null}
           <div className="product-details" id={`relay-details-${product.id}`} hidden={!expanded.includes(product.id)}>
             <p>{product.claim}</p>
             <p className="hint">{product.voltageV} V AC · {product.dimensions} · {product.protection} · ON/OFF only</p>
@@ -241,14 +245,12 @@ export default function RelayFlow({ initialMessages, onRestart }: { initialMessa
               {result.unknown.length ? <p className="evidence-note" data-testid={`unknown-${product.id}`}>{result.unknown.join(' ')}</p> : null}
             </div>
             <p className="hint">Scores express preference adherence, not electrical certification. Price ranges use delivered totals (item, shipping and fees, VAT included) across the listed seller offers.</p>
-            <div className="product-actions">{dismissed
-              ? <button type="button" className="button" data-testid={`restore-${product.id}`} onClick={() => { const entryId = entryIdFor(product.id); if (entryId) undo(entryId) }}>Restore</button>
-              : <><button type="button" className="button button--primary" data-testid={`buy-${product.id}`} onClick={() => { setSelected(product.id); setStage('buy') }}>Purchase options →</button>
-              <button type="button" className="text-button" data-testid={`dismiss-${product.id}`} onClick={() => setDismiss(product.id)}>Not for me</button></>}</div>
+            <div className="product-actions"><button type="button" className="button button--primary" data-testid={`buy-${product.id}`} onClick={() => { setSelected(product.id); setStage('buy') }}>Purchase options →</button>
+              <button type="button" className="text-button" data-testid={`dismiss-${product.id}`} onClick={() => setDismiss(product.id)}>Not for me</button></div>
           </div>
         </article>
       })}</div>
-      {!top.length && !dismissedRanked.length ? <div className="empty-state" data-testid="empty-state"><h2>No options in this demo catalog</h2><p>Undo feedback or adjust preferences in Configure. Nothing is excluded by a soft preference alone.</p></div> : null}
+      {!top.length ? <div className="empty-state" data-testid="empty-state"><h2>No options in this demo catalog</h2><p>Undo feedback or adjust preferences in Configure. Nothing is excluded by a soft preference alone.</p></div> : null}
     </section> : null}
 
     {stage === 'buy' && active ? <section data-testid="buy-page">

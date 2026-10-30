@@ -19,7 +19,6 @@ import {
   preferencesFromFeedback,
 } from './lib/requirements'
 import FeedbackLog from './components/FeedbackLog'
-import { reasonLabels } from './lib/feedback'
 import DismissModal, { type FeedbackDraft } from './components/DismissModal'
 import RelayFlow from './components/RelayFlow'
 import ChatPanel, { type ChatMessage } from './components/ChatPanel'
@@ -30,6 +29,7 @@ import ProductCard from './components/ProductCard'
 import SellerOffers from './components/SellerOffers'
 import ShoppingShell from './components/ShoppingShell'
 import type { Stage } from './components/StageProgress'
+import { distinctFollowUpCount } from './lib/askProgress'
 
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
@@ -46,6 +46,7 @@ export default function App() {
   const [features, setFeatures] = useState<Characteristic[]>([])
   const [ready, setReady] = useState(false)
   const [range, setRange] = useState(DEFAULT_PRICE_RANGE)
+  const [budgetOrigin, setBudgetOrigin] = useState<'chat' | 'user-edit' | 'demo-default'>('demo-default')
   const [shown, setShown] = useState<string[]>([])
   const [signature, setSignature] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
@@ -55,27 +56,18 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false)
 
   const activeDismissed = useMemo(() => new Set(feedback.filter((entry) => entry.active).map((entry) => entry.productId)), [feedback])
-  const ranked = useMemo(() => rankProducts(products, offers, features, range), [features, range])
-  const activeRanked = useMemo(() => ranked.filter((result) => !activeDismissed.has(result.product.id)), [ranked, activeDismissed])
-  const dismissedRanked = useMemo(() => ranked.filter((result) => activeDismissed.has(result.product.id)), [ranked, activeDismissed])
-  const top = useMemo(() => activeRanked.slice(0, TOP_K), [activeRanked])
+  const ranked = useMemo(
+    () => rankProducts(products.filter((product) => !activeDismissed.has(product.id)), offers.filter((offer) => !activeDismissed.has(offer.productId)), features, range),
+    [activeDismissed, features, range],
+  )
+  const top = useMemo(() => ranked.slice(0, TOP_K), [ranked])
   const shownRanked = top.filter((result) => shown.includes(result.product.id))
   const pending = top.find((result) => !shown.includes(result.product.id))
   const [updateNotice, setUpdateNotice] = useState<string | null>(null)
   const [highlighted, setHighlighted] = useState<string[]>([])
-  const entryByProduct = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const entry of feedback) if (entry.active && !map.has(entry.productId)) map.set(entry.productId, entry.id)
-    return map
-  }, [feedback])
-  const dismissedNoteFor = (productId: string): string | null => {
-    const entry = feedback.find((item) => item.productId === productId && item.active)
-    if (!entry) return null
-    const reasonText = entry.reasons.length ? entry.reasons.map((reason) => reasonLabels[reason] ?? reason).join(', ') : 'your feedback'
-    return `Dismissed: ${reasonText}${entry.note ? ` — ${entry.note}` : ''}`
-  }
   const active = products.find((product) => product.id === selected)
   const currentSignature = filterSignature(features, range)
+  const followUpCount = distinctFollowUpCount(messages.filter((message) => message.role === 'user').map((message) => message.text))
 
   useEffect(() => {
     if (stage !== 'discover' || !pending) return
@@ -88,7 +80,7 @@ export default function App() {
   }, [stage, pending])
 
   const navigate = (next: Stage) => {
-    if (next !== 'ask' && !ready || next === 'buy' && !active) return
+    if (next !== 'ask' && followUpCount < 2 || next === 'buy' && !active) return
     if (next === 'discover' && signature !== currentSignature) { setShown([]); setSignature(currentSignature); setRefreshing(false); setUpdateNotice(null); setHighlighted([]) }
     setStage(next)
   }
@@ -103,6 +95,8 @@ export default function App() {
     }
     if (count === 1 && ambiguous) setAmbiguous(false)
 
+    // The first user turn is the initial request. Only later, distinct answers
+    // count toward the two follow-ups; editing/resubmitting an answer is inert.
     let reply: string
     const ambiguousNow = !count && routeCategory(text) === 'ambiguous'
     if (ambiguousNow) {
@@ -111,7 +105,7 @@ export default function App() {
     } else {
       const userText = [...messages.filter((message) => message.role === 'user').map((message) => message.text), text].join(' ')
       const extracted = extractRequirements('pc', userText)
-      if (extracted.budgetMax !== null) setRange(budgetRangeFor(extracted.budgetMax))
+      if (extracted.budgetMax !== null) { setRange(budgetRangeFor(extracted.budgetMax)); setBudgetOrigin('chat') }
       setFeatures(extracted.features)
       const enough = extracted.features.length >= 2 || (extracted.features.length >= 1 && extracted.budgetMax !== null)
       setReady(enough)
@@ -125,12 +119,24 @@ export default function App() {
         reply = `I picked up ${pickups.join('; ')}.${budget} Review and edit these in Configure. This is a synthetic demo with fictional catalog data.`
       }
     }
+    const userTurns = messages.filter((message) => message.role === 'user').map((message) => message.text)
+    const nextFollowUpCount = distinctFollowUpCount([...userTurns, text])
+    if (ambiguousNow) {
+      // Preserve the explicit category clarification as the first reply.
+    } else if (nextFollowUpCount < 2) {
+      reply = nextFollowUpCount === 0
+        ? 'Thanks — I have your starting request. What is one useful detail to consider, such as use, size, performance, a feature, or budget?'
+        : 'Thanks. What is one other useful detail or preference I should consider? A different answer helps refine your brief; you can keep it short.'
+    } else {
+      const budget = extractRequirements('pc', [...userTurns, text].join(' ')).budgetMax
+      reply = `Your brief is ready to review with ${features.length} extracted preferences${budget !== null ? ` and a starting budget of CHF ${Math.round(budget)}` : ''}. You can continue to Configure now; this is a synthetic demo with fictional catalog data.`
+    }
     setMessages((current) => [...current, user, { id: uid(), role: 'assistant', text: reply }])
   }
 
   const restart = () => {
     setRelaySeed(null); setAmbiguous(false); setStage('ask'); setMessages([]); setFeatures([]); setReady(false)
-    setRange(DEFAULT_PRICE_RANGE); setShown([]); setSignature(''); setSelected(null); setExpanded([]); setFeedback([]); setDismiss(null); setRefreshing(false); setUpdateNotice(null); setHighlighted([])
+    setRange(DEFAULT_PRICE_RANGE); setBudgetOrigin('demo-default'); setShown([]); setSignature(''); setSelected(null); setExpanded([]); setFeedback([]); setDismiss(null); setRefreshing(false); setUpdateNotice(null); setHighlighted([])
   }
 
   const apply = (draft: FeedbackDraft) => {
@@ -148,7 +154,7 @@ export default function App() {
     setFeatures(nextFeatures)
     setFeedback((current) => [...current, {
       id: entryId, productId: product.id, productName: product.name, reasons: draft.reasons, note: draft.note,
-      active: true, changes: [], clarification: clarification || 'No new preference; product kept at the bottom of the discovery list.',
+      active: true, changes: [], clarification: clarification || 'No new preference; this product is dismissed from the current request.',
       preferenceIds: learned.map((feature) => feature.id),
     }])
     if (selected === product.id) setSelected(null)
@@ -176,13 +182,13 @@ export default function App() {
 
   if (relaySeed) return <RelayFlow initialMessages={relaySeed} onRestart={restart} />
 
-  return <ShoppingShell stage={stage} ready={ready} selected={Boolean(active)} learning={Boolean(dismiss)} onNavigate={navigate} onRestart={restart}>
-    {stage === 'ask' ? <ChatPanel messages={messages} revealed={ready} characteristicCount={features.length} onSend={send} onConfigure={() => navigate('configure')} /> : null}
+  return <ShoppingShell stage={stage} ready={followUpCount >= 2} selected={Boolean(active)} learning={Boolean(dismiss)} onNavigate={navigate} onRestart={restart}>
+    {stage === 'ask' ? <ChatPanel messages={messages} revealed={ready} characteristicCount={features.length} followUpCount={followUpCount} onSend={send} onConfigure={() => navigate('configure')} /> : null}
 
     {stage === 'configure' ? <section className="panel" data-testid="configure-page">
       <h2>Your requirements and price range</h2>
       <p className="hint configure-intro">These are the requirements inferred from your messages. Edit, remove or add any detail. Everything below is a soft preference used for ranking.</p>
-      <PriceRangeSlider bounds={PRODUCT_PRICE_BOUNDS} value={range} onChange={setRange} />
+      <PriceRangeSlider bounds={PRODUCT_PRICE_BOUNDS} value={range} origin={budgetOrigin} onChange={(value) => { setRange(value); setBudgetOrigin('user-edit') }} />
       <CharacteristicsPanel characteristics={features} onRemove={(id) => setFeatures(features.filter((feature) => feature.id !== id))}
         onAdd={(label) => setFeatures([...features, createCustomCharacteristic(label)])}
         onMode={(id, mode) => setFeatures(features.map((feature) => feature.id === id ? setCharacteristicMode(feature, mode) : feature))} />
@@ -204,14 +210,8 @@ export default function App() {
         ranked={result}
         expanded={expanded.includes(result.product.id)} onToggle={() => setExpanded((ids) => ids.includes(result.product.id) ? ids.filter((id) => id !== result.product.id) : [...ids, result.product.id])}
         onDismiss={() => setDismiss(result.product.id)} onOpen={() => { setSelected(result.product.id); setStage('buy') }}
-        highlighted={highlighted.includes(result.product.id)} />)}
-        {dismissedRanked.map((result) => <ProductCard key={`dismissed-${result.product.id}`}
-          ranked={result}
-          expanded={expanded.includes(result.product.id)} onToggle={() => setExpanded((ids) => ids.includes(result.product.id) ? ids.filter((id) => id !== result.product.id) : [...ids, result.product.id])}
-          onDismiss={() => setDismiss(result.product.id)} onOpen={() => { setSelected(result.product.id); setStage('buy') }}
-          dismissedNote={dismissedNoteFor(result.product.id)} onRestore={() => { const entryId = entryByProduct.get(result.product.id); if (entryId) undo(entryId) }}
-          highlighted={highlighted.includes(result.product.id)} />)}</div>
-      {!top.length && !dismissedRanked.length ? <div className="empty-state" data-testid="empty-state"><h2>No options in this demo catalog</h2><p>Undo feedback or adjust your preferences in Configure. Nothing is excluded by a soft preference alone.</p></div> : null}
+        highlighted={highlighted.includes(result.product.id)} />)}</div>
+      {!top.length ? <div className="empty-state" data-testid="empty-state"><h2>No options in this demo catalog</h2><p>Undo feedback or adjust your preferences in Configure. Nothing is excluded by a soft preference alone.</p></div> : null}
     </section> : null}
 
     {stage === 'buy' && active ? <SellerOffers product={active} offers={offersForProduct(offers, active.id)} onBack={() => navigate('discover')} /> : null}

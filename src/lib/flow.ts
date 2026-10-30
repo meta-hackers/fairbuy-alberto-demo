@@ -26,6 +26,7 @@ export interface Characteristic {
   preferenceOnly?: boolean
   /** Preset characteristics can be verified against fixture specs. Custom text cannot. */
   supported: boolean
+  origin?: 'chat' | 'user-edit' | 'feedback'
 }
 
 export interface PriceBounds {
@@ -74,10 +75,10 @@ export function ramCharacteristicLabel(value: number, mode: CharacteristicMode =
 
 export function setCharacteristicMode(characteristic: Characteristic, mode: CharacteristicMode): Characteristic {
   if (characteristic.kind === 'gpu') {
-    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: gpuCharacteristicLabel(Number(characteristic.value), mode) }
+    return { ...characteristic, origin: 'user-edit', mode, preferenceOnly: mode === 'preferred', label: gpuCharacteristicLabel(Number(characteristic.value), mode) }
   }
   if (characteristic.kind === 'ram') {
-    return { ...characteristic, mode, preferenceOnly: mode === 'preferred', label: ramCharacteristicLabel(Number(characteristic.value), mode) }
+    return { ...characteristic, origin: 'user-edit', mode, preferenceOnly: mode === 'preferred', label: ramCharacteristicLabel(Number(characteristic.value), mode) }
   }
   return characteristic
 }
@@ -103,11 +104,12 @@ export function createCustomCharacteristic(label: string, id?: string): Characte
     label: clean,
     kind: 'custom',
     supported: false,
+    origin: 'user-edit',
   }
 }
 
 export function createSupportedCustomCharacteristic(label: string, id: string): Characteristic {
-  return { id, label: label.trim(), kind: 'custom', supported: true }
+  return { id, label: label.trim(), kind: 'custom', supported: true, origin: 'chat' }
 }
 
 /** Cheapest confirmed delivered total for a product, used only by the demo ranking. */

@@ -124,7 +124,7 @@ function extractRelay(text: string): Characteristic[] {
 export function extractRequirements(category: DemoCategory, text: string): ExtractedRequirements {
   const budgetMax = extractBudget(text)
   return {
-    features: category === 'pc' ? extractPc(text) : extractRelay(text),
+    features: (category === 'pc' ? extractPc(text) : extractRelay(text)).map((feature) => ({ ...feature, origin: 'chat' as const })),
     budgetMax,
   }
 }
@@ -218,5 +218,5 @@ export function preferencesFromFeedback(category: DemoCategory, text: string): C
       features.push(createCustomCharacteristic(label))
     }
   }
-  return uniqueByLabel(features)
+  return uniqueByLabel(features).map((feature) => ({ ...feature, origin: 'feedback' as const }))
 }

@@ -37,6 +37,7 @@ export default function CharacteristicsPanel({ characteristics, onRemove, onAdd,
           {characteristics.map((characteristic) => (
             <li className="characteristic-item" key={characteristic.id} data-testid="characteristic-item" data-supported={characteristic.supported ? 'true' : 'false'}>
               <span className="characteristic-item__label">{onMode ? characteristic.label.replace(/ · (required|preference only|high priority|normal priority)$/, '') : characteristic.label}</span>
+              <span className="characteristic-origin" data-testid={`origin-${characteristic.id}`}>{characteristic.origin === 'feedback' ? 'Learned from feedback' : characteristic.origin === 'user-edit' ? 'Edited in Configure' : 'From chat'}</span>
               {!characteristic.supported ? <span className="characteristic-item__warning">unverified</span> : null}
               {onMode && (characteristic.kind === 'gpu' || characteristic.kind === 'ram') ? <select aria-label={`${characteristic.kind.toUpperCase()} priority`}
                 value={characteristic.mode ?? 'preferred'} onChange={(event) => onMode(characteristic.id, event.target.value as CharacteristicMode)}>

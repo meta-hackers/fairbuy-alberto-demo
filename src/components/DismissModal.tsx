@@ -43,6 +43,7 @@ export default function DismissModal({ productName, category, onClose, onApply }
   const clarifiedInterpretation = useMemo(() => deriveFeedbackClarification(category, [], clarified), [category, clarified])
   const interpreted = derived.interpretable || clarifiedInterpretation.interpretable
   const hasInput = selected.length > 0 || note.trim().length > 0
+  const hasReason = selected.some((reason) => reason !== 'other') || note.trim().length > 0
 
   useEffect(() => {
     if (!edited) setClarified(derived.interpretable ? derived.text : note.trim())
@@ -74,8 +75,8 @@ export default function DismissModal({ productName, category, onClose, onApply }
           <div><p className="eyebrow">Learn · product feedback</p><h2 id="dismiss-title">Why is this not a good fit?</h2></div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close" autoFocus>×</button>
         </div>
-        <p className="muted">{productName} will be removed from the current discovery list. This only changes your preferences for this category; it does not exclude a whole brand.</p>
-        <div className="reason-grid" role="group" aria-label="Reasons for exclusion">
+        <p className="muted">Why is {productName} not a good fit? Choose at least one reason or enter a free-text reason. It will be kept out of this request's results; this does not exclude a whole brand.</p>
+        <div className="reason-grid" role="group" aria-label="Reasons for dismissal">
           {REASONS[category].map((reason) => (
             <button type="button" key={reason.id} className={`chip chip--reason ${selected.includes(reason.id) ? 'is-active' : ''}`} aria-pressed={selected.includes(reason.id)} onClick={() => toggle(reason.id)} data-testid={`dismiss-reason-${reason.id}`}>
               {selected.includes(reason.id) ? '✓ ' : ''}{reason.label}
@@ -89,15 +90,15 @@ export default function DismissModal({ productName, category, onClose, onApply }
           <textarea data-testid="learned-clarification" value={clarified} onChange={(event) => { setClarified(event.target.value); setEdited(true) }} rows={2} placeholder="Describe the preference this demo should learn…" />
         </label> : null}
         <p className="hint" data-testid="learn-interpretation">
-          {!hasInput
-            ? 'Choose at least one reason or enter a nonempty note. Nothing is discarded silently.'
+            {!hasReason
+              ? selected.includes('other') ? 'Please describe the other reason in the text field before applying.' : 'Choose at least one reason or enter a nonempty free-text reason. Nothing is dismissed silently.'
             : interpreted
               ? 'This clarification is editable and will be applied as a soft preference; ranking and match scores update immediately.'
               : 'I cannot confidently map that note to a product attribute. Edit the clarification into a supported preference (for example quieter, compact, more RAM, stronger GPU, lower price, capacity or wiring), or cancel.'}
         </p>
         <div className="modal__actions">
           <button type="button" className="button button--ghost" onClick={onClose} data-testid="dismiss-cancel">Cancel</button>
-          <button type="button" className="button button--primary" disabled={!hasInput} onClick={() => onApply({ reasons: selected, note: note.trim(), clarification: clarified.trim() })} data-testid="dismiss-apply">Apply feedback</button>
+          <button type="button" className="button button--primary" disabled={!hasReason} onClick={() => onApply({ reasons: selected, note: note.trim(), clarification: clarified.trim() })} data-testid="dismiss-apply">Apply feedback</button>
         </div>
       </div>
     </div>

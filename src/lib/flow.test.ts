@@ -88,6 +88,7 @@ describe('flow characteristics', () => {
     expect(highRanked.find((result) => result.product.id === 'orbit')!.score)
       .toBeLessThan(normalRanked.find((result) => result.product.id === 'orbit')!.score)
     expect(high.find((feature) => feature.id === 'ram')!.label).not.toMatch(/required/i)
+    expect(high.find((feature) => feature.id === 'ram')!.origin).toBe('user-edit')
   })
 
   it('keeps lower matching products visible when preferences are removed', () => {
