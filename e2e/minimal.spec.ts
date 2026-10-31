@@ -15,10 +15,14 @@ async function request(page: Page, category: 'pc' | 'relay') {
     await page.getByTestId('ask-input').fill('I need a computer for gaming and photo editing')
     await page.getByTestId('ask-input').press('Enter')
     await page.getByTestId('ask-input').fill('Budget CHF 2000, 1440p, 32 GB RAM, prefer quiet')
+    await page.getByTestId('ask-input').press('Enter')
+    await page.getByTestId('ask-input').fill('I use it at home')
   } else {
     await page.getByTestId('ask-input').fill('I need a smart switch for my 18 W neon light')
     await page.getByTestId('ask-input').press('Enter')
     await page.getByTestId('ask-input').fill('Hue Bridge, 230 V with neutral, ceiling junction box, budget CHF 60')
+    await page.getByTestId('ask-input').press('Enter')
+    await page.getByTestId('ask-input').fill('I want a white casing')
   }
   await page.getByTestId('ask-input').press('Enter')
   await expect(page.getByTestId('stage-configure')).toBeEnabled()
@@ -64,6 +68,8 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 
         await expect(page.getByTestId('characteristics-panel')).toHaveCount(1)
         await expect(page.getByTestId('configure-continue')).toBeVisible()
         await expect(page.getByTestId('soft-note')).toContainText('soft preferences')
+        await expect(page.getByTestId('price-slider')).toHaveAttribute('data-origin', 'chat')
+        await expect(page.getByTestId('budget-origin')).toContainText('your chat')
         if (category === 'pc') {
           await expect(page.getByTestId('characteristics-panel')).toContainText('Use: gaming')
           await expect(page.getByTestId('characteristics-panel')).toContainText('RAM: 32 GB')
@@ -111,10 +117,13 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 
           await expect(badge).toBeVisible()
           await expect(badge).toHaveAttribute('data-label', item.label!)
           await expect(badge).toContainText(item.label!)
-          await expect(badge).toContainText('%')
+        await expect(badge).toContainText('%')
+        await expect(page.getByTestId(`attributes-${item.id}`)).toBeVisible()
+        await expect(page.getByTestId(`attributes-${item.id}`)).not.toBeEmpty()
         }
 
         const firstId = ranking[0].id
+        const firstProductName = await page.getByTestId(`product-card-${firstId}`).locator('.product-summary__name').innerText()
         await page.getByTestId(`expand-${firstId}`).click()
         await expect(page.getByTestId(`reasons-${firstId}`).locator('li')).not.toHaveCount(0)
         expect(await page.getByTestId(`reasons-${firstId}`).innerText()).toMatch(/preference|match|offer|target|request|supports|meets|rated/i)
@@ -124,11 +133,13 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 
         await page.getByTestId(`buy-${firstId}`).click()
         await expect(page.getByTestId('buy-page')).toBeVisible()
         await expect(page.getByTestId('buy-page')).toContainText('Seller options')
+        await expect(page.getByTestId('buy-page')).toContainText(firstProductName)
         await expect(page.locator(category === 'pc' ? '[data-testid^="seller-"]' : '[data-testid^="relay-offer-"]').first()).toBeVisible()
         await expect(page.getByTestId('buy-page')).toContainText('Checkout is not available')
         const offerLink = page.locator(category === 'pc' ? '[data-testid^="seller-link-"]' : '[data-testid^="relay-offer-link-"]').first()
         await expect(offerLink).toBeVisible()
         await expect(offerLink).toHaveAttribute('href', /^https:\/\/example\.com\//)
+        await expect(offerLink).toHaveAttribute('href', new RegExp(`/${firstId}$`))
         await expect(offerLink).toContainText(/View at .+ \(synthetic demo link\)/)
         await assertMinimal(page)
         await page.screenshot({ path: `artifacts/screenshots/new-flow-${category}-${viewport.name}-buy.png`, fullPage: true })
@@ -151,6 +162,9 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 
         await expect(page.getByRole('dialog')).toBeVisible()
         await expect(page.getByTestId('dismiss-apply')).toBeDisabled()
         await expect(page.getByTestId('stage-learn')).toHaveAttribute('aria-current', 'step')
+        await page.getByTestId('dismiss-reason-other').click()
+        await expect(page.getByTestId('dismiss-apply')).toBeDisabled()
+        await expect(page.getByTestId('learn-interpretation')).toContainText(/describe the other reason/i)
         const note = category === 'pc' ? 'I prefer a quieter option' : 'I prefer higher load capacity'
         await page.getByRole('textbox', { name: 'Or add a note' }).fill(note)
         await expect(page.getByTestId('dismiss-apply')).toBeEnabled()
@@ -169,14 +183,7 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 
         expect(learned.length).toBeGreaterThan(0)
         await page.getByTestId('dismiss-apply').click()
         const dismissedCard = page.getByTestId(`product-card-${firstId}`)
-        await expect(dismissedCard).toBeVisible()
-        await expect(dismissedCard).toHaveAttribute('data-dismissed', 'true')
-        await expect(page.getByTestId(`dismissed-note-${firstId}`)).toContainText(/Dismissed:/)
-        await expect(page.getByTestId(`restore-${firstId}`)).toBeVisible()
-        const cardsOrder = await cards(page).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-testid')!.replace('product-card-', '')))
-        expect(cardsOrder[cardsOrder.length - 1]).toBe(firstId)
-        const nameDecoration = await page.getByTestId(`product-card-${firstId}`).locator('.product-summary__name').evaluate((node) => getComputedStyle(node).textDecorationLine)
-        expect(nameDecoration).toContain('line-through')
+        await expect(dismissedCard).toHaveCount(0)
         const updateIndicator = page.getByTestId('discover-loading')
         await expect(updateIndicator).toBeVisible()
         await expect(updateIndicator).toContainText('Updating results')
@@ -189,9 +196,11 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 
         await expect(page.getByTestId('feedback-log')).toContainText(learned)
         await expect(page.getByTestId('feedback-log')).toContainText('Learned preference')
         const after = await scoreSnapshot(page)
+        await expect(cards(page)).toHaveCount(category === 'pc' ? 5 : 2)
         const overlap = Object.keys(after).filter((id) => id in before && id !== firstId)
         expect(overlap.length).toBeGreaterThan(0)
         expect(overlap.some((id) => after[id] !== before[id])).toBe(true)
+        if (category === 'pc') expect(Object.keys(after).some((id) => !(id in before))).toBe(true)
         for (const card of await cards(page).all()) {
           const id = (await card.getAttribute('data-testid'))!.replace('product-card-', '')
           await expect(page.getByTestId(`personalized-${id}`)).toContainText(/I thought you would like this because/i)
@@ -199,10 +208,9 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 1000 }, { name: 
         await assertMinimal(page)
         await page.screenshot({ path: `artifacts/screenshots/new-flow-${category}-${viewport.name}-learn-applied.png`, fullPage: true })
 
-        await page.getByTestId(`restore-${firstId}`).click()
+        await page.getByTestId(`undo-${firstId}`).click()
         for (let index = 0; index < 5; index++) await page.clock.runFor(2000)
-        await expect(page.getByTestId(`product-card-${firstId}`)).toHaveAttribute('data-dismissed', 'false')
-        await expect(page.getByTestId(`restore-${firstId}`)).toHaveCount(0)
+        await expect(page.getByTestId(`product-card-${firstId}`)).toBeVisible()
         await expect(page.getByTestId('feedback-log')).toContainText('Restored')
         await expect(page.getByTestId(`undo-${firstId}`)).toHaveCount(0)
         await page.getByTestId('stage-configure').click()
@@ -246,9 +254,7 @@ test('free-text-only feedback learns for both categories', async ({ page }) => {
     await page.getByTestId('dismiss-apply').click()
     await page.clock.runFor(10_000)
     await expect(page.getByTestId('feedback-log')).toContainText('Prefer compact products.')
-    await expect(page.getByTestId(`product-card-${firstId}`)).toHaveAttribute('data-dismissed', 'true')
-    await expect(page.getByTestId(`dismissed-note-${firstId}`)).toContainText(/Dismissed:/)
-    await expect(page.getByTestId(`personalized-${firstId}`)).toContainText(/I thought you would like this because/i)
+    await expect(page.getByTestId(`product-card-${firstId}`)).toHaveCount(0)
     await expect(page.getByTestId('matches-updated')).toContainText(/Matches updated/)
   }
 })
@@ -293,6 +299,11 @@ test('Configure CTA is visible and navigates to Discover at 320, 360 and 390 px 
       await request(page, category)
       await page.getByTestId('stage-configure').click()
       const cta = page.getByTestId('configure-continue')
+      await expect(page.getByTestId('price-slider')).toHaveAttribute('data-origin', 'chat')
+      await page.getByTestId('custom-characteristic-input').fill('small desk setup')
+      await page.getByTestId('add-characteristic').click()
+      await expect(page.getByTestId('characteristics-panel')).toContainText('small desk setup')
+      await expect(page.locator('[data-testid^="origin-custom-"]').last()).toHaveText('Edited in Configure')
       await expect(cta).toBeVisible()
       await expect(cta).toHaveText('Find products →')
       const ctaBox = await cta.boundingBox()
@@ -306,6 +317,68 @@ test('Configure CTA is visible and navigates to Discover at 320, 360 and 390 px 
       await expect(page.getByTestId('discover-page')).toBeVisible()
       await expect(page.getByTestId('stage-discover')).toHaveAttribute('aria-current', 'step')
       await assertMinimal(page)
+    }
+  }
+})
+
+test('Ask Continue counts two distinct follow-up answers, not the initial request or repeats (PC and relay)', async ({ page }) => {
+  for (const width of [1440, 320, 360, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    for (const category of ['pc', 'relay'] as const) {
+      await page.goto('/')
+      const continueButton = page.getByTestId('go-configure')
+      await expect(continueButton).toBeVisible()
+      await expect(continueButton).toBeDisabled()
+      await expect(page.getByTestId('ask-followup-count')).toHaveText('0/2 follow-up answers')
+      await expect(page.getByTestId('stage-configure')).toBeDisabled()
+
+      const initial = category === 'pc' ? 'I need a gaming computer' : 'I need a smart switch for a light'
+      await page.getByTestId('ask-input').fill(initial)
+      await page.getByTestId('ask-input').press('Enter')
+      await expect(continueButton).toBeDisabled()
+      await expect(page.getByTestId('ask-followup-count')).toHaveText('0/2 follow-up answers')
+
+      const first = category === 'pc' ? '1440p gaming' : 'Philips Hue Bridge'
+      await page.getByTestId('ask-input').fill(first)
+      await page.getByTestId('ask-input').press('Enter')
+      await expect(page.getByTestId('ask-followup-count')).toHaveText('1/2 follow-up answers')
+      await expect(continueButton).toBeDisabled()
+
+      await page.getByTestId('ask-input').fill(`  ${first.toUpperCase()}  `)
+      await page.getByTestId('ask-input').press('Enter')
+      await expect(page.getByTestId('ask-followup-count')).toHaveText('1/2 follow-up answers')
+      await expect(continueButton).toBeDisabled()
+      await page.getByTestId('ask-input').fill('   ')
+      await expect(page.getByTestId('ask-send')).toBeDisabled()
+      await page.getByTestId('ask-input').press('Enter')
+      await expect(page.getByTestId('ask-followup-count')).toHaveText('1/2 follow-up answers')
+
+      const second = category === 'pc' ? 'Budget CHF 2000, 32 GB RAM' : 'Budget CHF 60, 230 V with neutral'
+      await page.getByTestId('ask-input').fill(second)
+      await page.getByTestId('ask-send').click()
+      await expect(page.getByTestId('ask-followup-count')).toHaveText('2/2 follow-up answers')
+      await expect(continueButton).toBeEnabled()
+      await expect(page.getByTestId('stage-configure')).toBeEnabled()
+      const buttonBox = await continueButton.boundingBox()
+      expect(buttonBox).not.toBeNull()
+      expect(buttonBox!.x).toBeGreaterThanOrEqual(0)
+      expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(width + 1)
+      if (width === 1440) {
+        await continueButton.focus()
+        await page.keyboard.press('Enter')
+      } else {
+        await continueButton.click()
+      }
+      await expect(page.getByTestId('configure-page')).toBeVisible()
+      if (category === 'pc') {
+        await expect(page.getByTestId('characteristics-panel')).toContainText('1440p')
+        await expect(page.getByTestId('characteristics-panel')).toContainText('RAM: 32 GB')
+        await expect(page.getByTestId('price-max-value')).toContainText("2'000")
+      } else {
+        await expect(page.getByTestId('characteristics-panel')).toContainText('Philips Hue Bridge compatible')
+        await expect(page.getByTestId('characteristics-panel')).toContainText('230 V AC')
+        await expect(page.getByTestId('relay-price-max-value')).toContainText('60')
+      }
     }
   }
 })
@@ -329,6 +402,7 @@ test('every visible Discover card shows match, price range and retailer tags at 
         expect(priceText).toMatch(/^CHF [\d'.,]+[–-][\d'.,]+$/)
         await expect(page.getByTestId(`personalized-${id}`)).toBeVisible()
         await expect(page.getByTestId(`personalized-${id}`)).toContainText(/I thought you would like this because/i)
+        await expect(page.getByTestId(`attributes-${id}`)).toBeVisible()
         const tags = page.getByTestId(`retailers-${id}`).locator('.retailer-tag')
         expect(await tags.count()).toBeGreaterThanOrEqual(1)
         for (const tag of await tags.all()) {
@@ -379,6 +453,8 @@ test('ambiguous category clarification routes to the relay flow without a later 
   await page.getByTestId('ask-input').press('Enter')
   await expect(page.getByTestId('message-assistant')).toContainText('Do you mean a computer')
   await page.getByTestId('ask-input').fill('A smart relay switch for a neon light, Hue Bridge, budget CHF 50')
+  await page.getByTestId('ask-input').press('Enter')
+  await page.getByTestId('ask-input').fill('Neutral wiring is available')
   await page.getByTestId('ask-input').press('Enter')
   await expect(page.getByTestId('stage-configure')).toBeEnabled()
   await page.getByTestId('stage-configure').click()

@@ -24,7 +24,7 @@ export default function StageProgress({ stage, learning, canConfigure, canBuy, o
           <span id="learn-step-note" hidden>Learning happens in the feedback dialog over Discover.</span>
         </li>
       }
-      const reason = step.id !== 'ask' && !canConfigure ? 'Complete your request in Ask first.'
+      const reason = step.id !== 'ask' && !canConfigure ? 'Answer two distinct follow-up questions in Ask first.'
         : step.id === 'buy' && !canBuy ? 'Select a product in Discover first.' : undefined
       return <li key={step.id}>
         <button type="button" disabled={Boolean(reason)} title={reason}

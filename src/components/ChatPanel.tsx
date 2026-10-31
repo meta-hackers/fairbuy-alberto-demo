@@ -13,10 +13,11 @@ interface Props {
   characteristicCount: number
   onSend: (text: string) => void
   onConfigure: () => void
+  followUpCount: number
   placeholder?: string
 }
 
-export default function ChatPanel({ messages, revealed, characteristicCount, onSend, onConfigure, placeholder = 'What are you looking for?' }: Props) {
+export default function ChatPanel({ messages, revealed, characteristicCount, followUpCount, onSend, onConfigure, placeholder = 'What are you looking for?' }: Props) {
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const logRef = useRef<HTMLDivElement>(null)
@@ -66,18 +67,15 @@ export default function ChatPanel({ messages, revealed, characteristicCount, onS
       <div className="chat-actions">
         {!revealed ? (
           <p className="hint" data-testid="ask-progress">
-            {userCount === 0 ? 'Start with the product you need.' : 'Add useful details such as a use case, size, performance target, or feature.'}
+            {userCount === 0 ? 'Start with the product you need.' : `Follow-up ${Math.min(followUpCount, 2)} of 2 answered. Add useful details such as a use case, size, performance target, or feature.`}
           </p>
-        ) : (
-          <div className="chat-actions__row chat-actions__row--between">
-            <span className="hint" data-testid="chat-revealed-note">
-              {characteristicCount} requirements ready to review.
-            </span>
-            <button type="button" className="button button--primary" onClick={onConfigure} data-testid="go-configure">
-               Review in Configure →
-            </button>
-          </div>
-        )}
+        ) : <span className="hint" data-testid="chat-revealed-note">{characteristicCount} requirements extracted so far.</span>}
+        <div className="chat-actions__row chat-actions__row--between">
+          <span className="hint" data-testid="ask-followup-count" aria-live="polite">{followUpCount}/2 follow-up answers</span>
+          <button type="button" className="button button--primary" onClick={onConfigure} disabled={followUpCount < 2} data-testid="go-configure">
+             Continue to Configure →
+          </button>
+        </div>
         <form className="composer" aria-label="Your shopping message" onSubmit={(event) => { event.preventDefault(); submitDraft() }}>
           <label className="composer__label" htmlFor="ask-free-text">Your message</label>
           <textarea

@@ -79,6 +79,7 @@ textarea { width: 100%; resize: vertical; line-height: 1.5; }
 .characteristic-list { list-style: none; padding: 0; margin: 0 0 20px; border-top: 1px solid var(--line); }
 .characteristic-item { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--line); }
 .characteristic-item__label { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 0.87rem; }
+.characteristic-origin { color: var(--muted); font-size: 0.68rem; white-space: nowrap; }
 .characteristic-item select { font-size: 0.75rem; padding: 8px; min-height: 40px; }
 .characteristic-item > button { background: transparent; border: 0; color: var(--muted); min-width: 36px; min-height: 44px; font-size: 1.2rem; }
 .characteristic-item__warning { color: #7d5b23; font-size: 0.7rem; }
@@ -104,9 +105,8 @@ textarea { width: 100%; resize: vertical; line-height: 1.5; }
 .retailer-tag { display: inline-flex; align-items: center; padding: 2px 7px; border: 1px solid #d5ded7; border-radius: 4px; background: #f5f7f3; color: #4c6057; font-size: 0.7rem; line-height: 1.4; white-space: nowrap; }
 .product-summary .estimate { font-size: 0.78rem; color: var(--muted); text-align: right; }
 .personalized-reason { margin: 0; padding: 0 20px 14px; font-size: 0.85rem; color: #20362e; }
-.dismissed-note { margin: 0; padding: 0 20px 12px; font-size: 0.8rem; color: #71552d; }
-.product-card--dismissed { opacity: 0.72; background: #f4f4f1; }
-.product-card--dismissed .product-summary__name { text-decoration: line-through; }
+.product-attributes { margin: 0; padding: 0 20px 7px; color: var(--muted); font-size: 0.77rem; }
+.card-tradeoff { margin: 0; padding: 0 20px 14px; color: #71552d; font-size: 0.8rem; }
 .update-banner { border: 1px solid #b9d3c1; background: #e4efe6; color: #1d4b37; border-radius: 9px; padding: 10px 14px; font-size: 0.86rem; margin: 0 0 16px; }
 .product-card--updated { animation: match-flash 1.6s ease-out 1; border-color: #245c47; }
 @keyframes match-flash { 0% { box-shadow: 0 0 0 3px #b9d3c1; } 100% { box-shadow: none; } }

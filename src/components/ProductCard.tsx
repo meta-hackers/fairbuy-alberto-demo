@@ -7,8 +7,6 @@ interface Props {
   onDismiss: () => void
   expanded: boolean
   onToggle: () => void
-  dismissedNote?: string | null
-  onRestore?: (() => void) | null
   highlighted?: boolean
 }
 
@@ -22,11 +20,10 @@ export function personalizedLine(ranked: RankedProduct): string {
   return 'I thought you would like this because it is the closest available option in this synthetic demo catalog.'
 }
 
-export default function ProductCard({ ranked, onOpen, onDismiss, expanded, onToggle, dismissedNote, onRestore, highlighted }: Props) {
+export default function ProductCard({ ranked, onOpen, onDismiss, expanded, onToggle, highlighted }: Props) {
   const { product, score, label, offerRange, retailers, reasons, tradeoffs, unknown } = ranked
   const c = product.config
-  const dismissed = Boolean(dismissedNote)
-  return <article className={`product-card${dismissed ? ' product-card--dismissed' : ''}${highlighted ? ' product-card--updated' : ''}`} data-testid={`product-card-${product.id}`} data-score={score} data-dismissed={dismissed ? 'true' : 'false'}>
+  return <article className={`product-card${highlighted ? ' product-card--updated' : ''}`} data-testid={`product-card-${product.id}`} data-score={score}>
     <button type="button" className="product-summary" data-testid={`expand-${product.id}`} aria-expanded={expanded} aria-controls={`details-${product.id}`} onClick={onToggle}>
       <span className="product-summary__heading">
         <span className="product-summary__name">{product.name}</span>
@@ -40,8 +37,9 @@ export default function ProductCard({ ranked, onOpen, onDismiss, expanded, onTog
       </span>
       <span aria-hidden="true">{expanded ? '−' : '+'}</span>
     </button>
+    <p className="product-attributes" data-testid={`attributes-${product.id}`}>{c.cpu} · {c.gpu} · {c.ramGB} GB RAM · {c.storageGB / 1000} TB storage · {c.condition}</p>
     <p className="personalized-reason" data-testid={`personalized-${product.id}`}>{personalizedLine(ranked)}</p>
-    {dismissed ? <p className="dismissed-note" data-testid={`dismissed-note-${product.id}`}>{dismissedNote}</p> : null}
+    {tradeoffs.length ? <p className="card-tradeoff" data-testid={`card-tradeoff-${product.id}`}>{tradeoffs[0]}</p> : null}
     <div id={`details-${product.id}`} className="product-details" hidden={!expanded}>
       <p>{c.cpu} · {c.gpu} · {c.ramGB} GB RAM · {c.storageGB / 1000} TB · {c.condition}</p>
       <p className="hint">{product.tagline}</p>
@@ -60,12 +58,8 @@ export default function ProductCard({ ranked, onOpen, onDismiss, expanded, onTog
       </div>
       <p className="hint">Scores express preference adherence, not a guarantee. Price ranges use delivered totals (item, shipping and fees, VAT included) across the listed retailer offers.</p>
       <div className="product-actions">
-        {dismissed && onRestore
-          ? <button type="button" className="button" data-testid={`restore-${product.id}`} onClick={onRestore}>Restore</button>
-          : <>
-            <button type="button" className="button button--primary" data-testid={`buy-${product.id}`} onClick={onOpen}>Purchase options →</button>
-            <button type="button" className="text-button" onClick={onDismiss} data-testid={`dismiss-${product.id}`}>Not for me</button>
-          </>}
+        <button type="button" className="button button--primary" data-testid={`buy-${product.id}`} onClick={onOpen}>Purchase options →</button>
+        <button type="button" className="text-button" onClick={onDismiss} data-testid={`dismiss-${product.id}`}>Not for me</button>
       </div>
     </div>
   </article>

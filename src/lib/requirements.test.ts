@@ -13,6 +13,7 @@ describe('requirement extraction from natural chat', () => {
     expect(extracted.features.find((feature) => feature.id === 'resolution')?.value).toBe('4K')
     expect(extracted.features.find((feature) => feature.id === 'ram')?.value).toBe(64)
     expect(extracted.budgetMax).toBe(2400)
+    expect(extracted.features.every((feature) => feature.origin === 'chat')).toBe(true)
   })
 
   it('combines useful details across both turns without inventing a default GPU', () => {
@@ -52,6 +53,7 @@ describe('feedback interpretation', () => {
     const labels = preferencesFromFeedback('pc', 'Prefer more RAM; Prefer stronger GPU performance.').map((feature) => feature.label)
     expect(labels).toEqual(['Prefer more RAM.', 'Prefer stronger GPU performance.'])
     expect(preferencesFromFeedback('pc', 'Prefer more RAM.')[0].supported).toBe(true)
+    expect(preferencesFromFeedback('pc', 'Prefer more RAM.')[0].origin).toBe('feedback')
   })
 
   it('keeps an uninterpretable note transparent and unverified instead of silently ignoring it', () => {
